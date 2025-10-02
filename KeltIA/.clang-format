@@ -1,0 +1,18 @@
+BasedOnStyle: LLVM   # base style modern and clean
+IndentWidth: 4       # indentation of 4 spaces
+TabWidth: 4
+UseTab: Never        # use spaces instead of tabs
+ColumnLimit: 80      # maximum line length
+AllowShortFunctionsOnASingleLine: true    # allow short functions on a single line
+AllowShortIfStatementsOnASingleLine: true # allow short if statements on a single line
+AllowShortLoopsOnASingleLine: true       # allow short loops on a single line
+AllowShortBlocksOnASingleLine: true      # allow short blocks on a single line
+BreakBeforeBraces: Allman   # place braces on a new line
+DerivePointerAlignment: false
+PointerAlignment: Right      # prefer 'int* ptr' instead of 'int *ptr'
+SpacesBeforeTrailingComments: 2
+AlignTrailingComments: true
+SpaceBeforeParens: ControlStatements  # space before parentheses in if/for/while
+SortIncludes: true
+IncludeBlocks: Preserve
+ReflowComments: true
