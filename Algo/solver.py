@@ -2,11 +2,11 @@
 The main function is solver(grid, word).
 
 Algorithm :
-    for each (i,j) in the grid :
-        - search for the word in all (8) directions.
-        - if the word was found :
-            return coordinates
-    return "no results".
+    for each (i,j) case in the grid :
+        for each of the 8 directions, search the word :
+            - if the word was found :
+                return coordinates (startX,startY),(endX,endY)
+    return None
 """
 
 def solver(grid : list[list], word : str):
@@ -18,100 +18,42 @@ def solver(grid : list[list], word : str):
     """
     height = len(grid)   # rows count
     width = len(grid[0]) # columns count
-    
+    word_len = len(word) # word lenght
+
+    directions = [
+        (0, 1),   # → E  (East)
+        (0, -1),  # ← W  (West)
+        (1, 0),   # ↓ S  (South)
+        (-1, 0),  # ↑ N  (North)
+        (1, 1),   # ↘ SE (South-East)
+        (-1, -1), # ↖ NW (North-West)
+        (1, -1),  # ↙ SW (South-West)
+        (-1, 1)   # ↗ NE (North-East)
+    ]
+
     for i in range(height):
         for j in range(width):
-            result = search(grid, word, i, j, width, height, len(word))
-            if (result != None):
-                return result
+            if grid[i][j] == word[0]: # to avoid searching if we already know it's not here
+                for (abscisse, ordonnee) in directions:
+                    # (x,y) are moving from the first letter in (i,j) in the direction (abscisse, ordonnee)
+                    x = i 
+                    y = j
 
-    return None
+                    k = 0
+                    # while the letters in the current directions works with the word's letters.
+                    while (k < word_len) and (0 <= x < height and 0 <= y < width) and (grid[x][y] == word[k]):
+                        x += abscisse
+                        y += ordonnee
+                        k += 1 # current letter index in the word
+                    if k == word_len:
+                        # we found the word from (i,j) to (i2, j2).
 
-
-def search_simple(grid, word, x1, y1, width, height, wordLength):
-    """
-    Searchs a word from Start = (x1,y1) in the four standard directions.
-    Returns None if the word was not found.
-    """
-    # Horizontal (West -> East)
-    if y1 + wordLength <= width:
-        match = True
-        i = 0
-        while i < wordLength and match:
-            if grid[x1][y1 + i] != word[i]:
-                match = False
-            i += 1
-        if match:
-            return ((y1, x1), (y1 + wordLength - 1, x1))
+                        # Note that the variables (x,y) have gone one box too far
+                        # That's why we desincrement them in the opposite direction
+                        i2 = x - abscisse
+                        j2 = y - ordonnee
+                        return ((j, i), (j2, i2)) # Python's indexes (i,j) are (j,i) humans coordinates.
     
-    # Vertical (North -> South)
-    if x1 + wordLength <= height:
-        match = True
-        i = 0
-        while i < wordLength and match:
-            if grid[x1 + i][y1] != word[i]:
-                match = False
-            i += 1
-        if match:
-            return ((y1, x1), (y1, x1 + wordLength - 1))
-        
-    # Diagonal Principale (NW -> SE)
-    if x1 + wordLength <= height and y1 + wordLength <= width:
-        match = True
-        i = 0
-        while i < wordLength and match:
-            if grid[x1 + i][y1 + i] != word[i]:
-                match = False
-            i += 1
-        if match:
-            return ((y1, x1), (y1 + wordLength - 1, x1 + wordLength - 1))
-        
-    # Diagonale Secondaire (NE -> SW)
-    if x1 + wordLength <= height and y1 - wordLength + 1 >= 0:
-        match = True
-        i = 0
-        while i < wordLength and match:
-            if grid[x1 + i][y1 - i] != word[i]:
-                match = False
-            i += 1
-        if match:
-            return ((y1, x1), (y1 - wordLength + 1, x1 + wordLength - 1))
-
-
- 
-    return None
-
-def search(grid, word, x1, y1, width, height, wordLength):
-    """
-    Searchs a word from Start = (x1,y1)
-    Calls the function search_simple twice to search in 8 directions.
-    Returns None if the word was not found.
-    """
-    result = search_simple(grid, word, x1, y1, width, height, wordLength)
-    if result != None:
-        return result
-    result = search_simple(grid, mirror(word), x1, y1, width, height, wordLength)
-    if result != None:
-        return (result[1], result[0])
-
-    
-    
-
-def mirror(s: str) -> str:
-    return s[::-1] # I know this is a Pythonnerie. We will have to do it in C.
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
