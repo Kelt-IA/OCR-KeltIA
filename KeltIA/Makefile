@@ -1,7 +1,6 @@
-# Compilateur et options
 CC = gcc
-CFLAGS = -Wall -Wextra -fsanitize=address -O2 `pkg-config --cflags gtk+-3.0`
-LDFLAGS = `pkg-config --libs gtk+-3.0`
+CFLAGS = -Iinclude -Wall -Wextra -O2 `pkg-config --cflags gtk+-3.0`
+LDFLAGS = -lm `pkg-config --libs gtk+-3.0` -fsanitize=address
 
 SRC_DIR = src
 BUILD_DIR = build
