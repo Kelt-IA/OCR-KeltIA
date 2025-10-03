@@ -10,3 +10,6 @@ double sigmoid_derivative(double x)
 
 double relu(double x) { return x > 0 ? x : 0; }
 double relu_derivative(double x) { return x > 0 ? 1 : 0; }
+
+// perceptron
+double step(double x) { return x >= 0 ? 1.0 : 0.0; }

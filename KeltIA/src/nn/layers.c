@@ -1,14 +1,16 @@
 #include "layers.h"
+#include "activation.h"
+#include <string.h>
 
 void free_layer(Layer *layer)
 {
     if (!layer) return;
-    if (layer->weights) { free(layer->weights); }
-    if (layer->bias != NULL) { free(layer->weights); }
-    if (layer->output != NULL) { free(layer->weights); }
+    if (layer->weights) free(layer->weights);
+    if (layer->bias) free(layer->bias);
+    if (layer->output) free(layer->output);
 }
 
-void foward_layer(Layer *layer, double *input)
+void foward_layer(Layer *layer, double *input, Activation f)
 {
     for (int j = 0; j < layer->n_neurons; j++)
     {
@@ -17,7 +19,7 @@ void foward_layer(Layer *layer, double *input)
         {
             sum += input[i] * layer->weights[j * layer->n_inputs + i];
         }
-        layer->output[j] = sigmoid(sum);
+        layer->output[j] = f(sum);
     }
 }
 
@@ -39,6 +41,13 @@ Layer create_layer(size_t n_inputs, size_t n_neurons)
     return l;
 }
 
-// TODO
-void load_weights(Layer *layer, double *weights);
-void load_biases(Layer *layer, double *weights);
+void load_weights(Layer *layer, double *weights)
+{
+    memcpy(layer->weights, weights,
+           sizeof(double) * layer->n_neurons * layer->n_inputs);
+}
+
+void load_biases(Layer *layer, double *biases)
+{
+    memcpy(layer->bias, biases, sizeof(double) * layer->n_neurons);
+}
