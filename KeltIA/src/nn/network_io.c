@@ -5,6 +5,8 @@ int save_nn(char *path, const NeuronalNetwork *nn);
 
 ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
 {
+    if (!out_nn) return ERR_NULL_POINTER;
+
     FILE *f = fopen(path, "rb");
     if (!f) return ERR_FILE_OPEN;
 
