@@ -1,4 +1,4 @@
 #pragma once
-#include "nn.h"
 
+#include "network.h"
 NeuronalNetwork *xor_nn();

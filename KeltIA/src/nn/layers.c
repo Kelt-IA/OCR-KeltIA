@@ -1,5 +1,4 @@
-#include "layers.h"
-#include "activation.h"
+#include "../../include/nn/include_nn.h"
 #include <string.h>
 
 void free_layer(Layer *layer)

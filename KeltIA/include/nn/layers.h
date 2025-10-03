@@ -1,5 +1,7 @@
+#pragma once
+
 #include "activation.h"
-#include "stdlib.h"
+#include <stdlib.h>
 
 typedef struct
 {

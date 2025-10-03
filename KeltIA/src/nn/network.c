@@ -1,4 +1,4 @@
-#include "nn.h"
+#include "../../include/nn/include_nn.h"
 
 void free_nn(NeuronalNetwork *nn)
 {

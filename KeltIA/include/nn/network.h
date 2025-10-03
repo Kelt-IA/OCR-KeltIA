@@ -1,5 +1,6 @@
 #pragma once
 
+#include "activation.h"
 #include "layers.h"
 #include <stdlib.h>
 
