@@ -25,6 +25,7 @@ NeuronalNetwork *xor_nn()
     return nn;
 }
 
+/*
 int main()
 {
     NeuronalNetwork *nn = xor_nn();
@@ -48,3 +49,4 @@ int main()
     free_nn(nn);
     return 0;
 }
+*/
