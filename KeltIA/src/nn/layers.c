@@ -50,3 +50,25 @@ void load_biases(Layer *layer, double *biases)
 {
     memcpy(layer->bias, biases, sizeof(double) * layer->n_neurons);
 }
+
+ErrorCode load_weights_from_fs(FILE *f, Layer *layer)
+{
+    size_t count = layer->n_neurons * layer->n_inputs;
+    if (fread(layer->weights, sizeof(double), count, f) != count)
+    {
+        return NN_ERR_READ;
+    }
+
+    return NN_ERR_OK;
+}
+
+ErrorCode load_biases_from_fs(FILE *f, Layer *layer)
+{
+    size_t count = layer->n_neurons;
+    if (fread(layer->bias, sizeof(double), count, f) != count)
+    {
+        return NN_ERR_READ;
+    }
+
+    return NN_ERR_OK;
+}

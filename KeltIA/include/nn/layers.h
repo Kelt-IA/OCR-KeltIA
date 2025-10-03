@@ -1,6 +1,8 @@
 #pragma once
 
 #include "activation.h"
+#include "errors.h"
+#include <stdio.h>
 #include <stdlib.h>
 
 typedef struct
@@ -19,3 +21,6 @@ Layer create_layer(size_t n_inputs, size_t n_neurons);
 
 void load_weights(Layer *layer, double *weights);
 void load_biases(Layer *layer, double *weights);
+
+ErrorCode load_weights_from_fs(FILE *f, Layer *layer);
+ErrorCode load_biases_from_fs(FILE *f, Layer *layer);
