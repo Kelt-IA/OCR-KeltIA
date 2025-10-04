@@ -1,6 +1,17 @@
 #include "../../include/nn/include_nn.h"
 #include <stdio.h>
 
+void print_double_array(const double *arr, size_t size)
+{
+    printf("[");
+    for (size_t i = 0; i < size; i++)
+    {
+        printf("%.6f", arr[i]);
+        if (i < size - 1) { printf(", "); }
+    }
+    printf("]\n");
+}
+
 ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
 {
     if (!nn)
@@ -20,8 +31,8 @@ ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
 
     // write header
     fwrite(MAGIC, MAGIC_SIZE, 1, f);
-    fwrite(&nn->n_inputs, sizeof(int), 1, f);
-    fwrite(&nn->n_layers, sizeof(int), 1, f);
+    fwrite(&nn->n_inputs, sizeof(size_t), 1, f);
+    fwrite(&nn->n_layers, sizeof(size_t), 1, f);
 
     // layers
     size_t count_written;
@@ -40,7 +51,7 @@ ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
         if (count_written != nn->layers[i].n_neurons)
         {
             fclose(f);
-            fprintf(stderr, "network_io.c: Error writting biases to file");
+            fprintf(stderr, "network_io.c: Error writting biases to file\n");
             return NN_ERR_WRITE;
         }
 
@@ -48,10 +59,10 @@ ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
             fwrite(nn->layers[i].weights, sizeof(double),
                    nn->layers[i].n_neurons * nn->layers[i].n_inputs, f);
 
-        if (count_written != nn->layers[i].n_neurons)
+        if (count_written != nn->layers[i].n_neurons * nn->layers[i].n_inputs)
         {
             fclose(f);
-            fprintf(stderr, "network_io.c: Error writing weights to file");
+            fprintf(stderr, "network_io.c: Error writing weights to file\n");
             return NN_ERR_WRITE;
         }
     }
@@ -77,8 +88,10 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
         return NN_ERR_FORMAT;
     }
 
-    fread(&out_nn->n_inputs, sizeof(int), 1, f);
-    fread(&out_nn->n_layers, sizeof(int), 1, f);
+    // printf("principio\n\n");
+
+    fread(&out_nn->n_inputs, sizeof(size_t), 1, f);
+    fread(&out_nn->n_layers, sizeof(size_t), 1, f);
 
     out_nn->layers = malloc(sizeof(Layer) * out_nn->n_layers);
     if (!out_nn->layers)
@@ -93,8 +106,8 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
     {
         // reading the layers
 
-        int neurons;
-        fread(&neurons, sizeof(int), 1, f);
+        size_t neurons;
+        fread(&neurons, sizeof(size_t), 1, f);
 
         int err = create_layer(&out_nn->layers[i], prev_neurons, neurons);
         if (err != 0)
@@ -104,16 +117,16 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
             return NN_ERR_NULL_POINTER;
         }
 
-        fread(&out_nn->layers[i].n_neurons, sizeof(int), 1, f);
+        // fread(&out_nn->layers[i].n_neurons, sizeof(size_t), 1, f);
         // check error
 
-        out_nn->layers[i].n_inputs = prev_neurons;
+        // out_nn->layers[i].n_inputs = prev_neurons;
 
         // load weights
-        ErrorCode err_weight = load_weights_from_fs(f, &out_nn->layers[i]);
+        ErrorCode err_weight = load_biases_from_fs(f, &out_nn->layers[i]);
         if (err_weight != 0)
         {
-            fprintf(stderr, "network_io: Error loading weights\n");
+            fprintf(stderr, "network_io: Error loading biases\n");
             return err_weight;
         }
 
@@ -121,12 +134,23 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
         ErrorCode err_bias = load_weights_from_fs(f, &out_nn->layers[i]);
         if (err_bias != 0)
         {
-            fprintf(stderr, "network_io: Error loading biases\n");
+            fprintf(stderr, "network_io: Error loading weights\n");
             return err_bias;
         }
 
         prev_neurons = out_nn->layers[i].n_neurons;
     }
+    /*
+    printf("lleguo al final\n");
+    for (size_t i = 0; i < out_nn->n_layers; i++)
+    {
+        printf("biases and weights, layer: %ld \n", i);
+        size_t neurons = out_nn->layers->n_neurons;
+        print_double_array(out_nn->layers[i].bias, out_nn->layers[i].n_neurons);
+        print_double_array(out_nn->layers[i].weights,
+                           out_nn->layers[i].n_neurons);
+    }
+    */
 
     fclose(f);
     return NN_ERR_OK;

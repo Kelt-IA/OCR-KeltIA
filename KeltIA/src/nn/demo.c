@@ -1,11 +1,12 @@
 #include "../../include/nn/include_nn.h"
 #include <stdio.h>
 
-NeuronalNetwork *xor_nn()
+void xor_nn(NeuronalNetwork *nn)
 {
     // XOR 2->2->1
     size_t num_neuron_l[2] = {2, 1};
-    NeuronalNetwork *nn = create_nn(2, 2, num_neuron_l);
+
+    create_nn(2, 2, num_neuron_l, nn);
 
     // hand crafted weights and biases
     double first_w[4] = {1, 1, 1, 1};  // 2 neurons, 2 inputs each -> 4 weights
@@ -21,8 +22,6 @@ NeuronalNetwork *xor_nn()
     // layer 2 (exit)
     load_weights(&nn->layers[1], second_w);
     load_biases(&nn->layers[1], second_b);
-
-    return nn;
 }
 
 /*

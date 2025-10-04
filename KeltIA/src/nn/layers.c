@@ -56,8 +56,20 @@ void load_biases(Layer *layer, double *biases)
 ErrorCode load_weights_from_fs(FILE *f, Layer *layer)
 {
     size_t count = layer->n_neurons * layer->n_inputs;
-    if (fread(layer->weights, sizeof(double), count, f) != count)
+    size_t written = fread(layer->weights, sizeof(double), count, f);
+    if (written != count)
     {
+        if (feof(f))
+        {
+            fprintf(stderr, "layers.c: ERROR: End of file reached\n");
+        }
+        if (ferror(f))
+        {
+            fprintf(stderr, "layers.c: ERROR: File read error\n");
+        }
+
+        fprintf(stderr, "layers.c: (weights) written: %ld expected: %ld\n",
+                written, count);
         return NN_ERR_READ;
     }
 
@@ -67,8 +79,19 @@ ErrorCode load_weights_from_fs(FILE *f, Layer *layer)
 ErrorCode load_biases_from_fs(FILE *f, Layer *layer)
 {
     size_t count = layer->n_neurons;
-    if (fread(layer->bias, sizeof(double), count, f) != count)
+    size_t written = fread(layer->bias, sizeof(double), count, f);
+    if (written != count)
     {
+        if (feof(f))
+        {
+            fprintf(stderr, "layers.c: ERROR: End of file reached\n");
+        }
+        if (ferror(f))
+        {
+            fprintf(stderr, "layers.c: ERROR: File read error\n");
+        }
+        fprintf(stderr, "layers.c: (biases) written: %ld expected: %ld\n",
+                written, count);
         return NN_ERR_READ;
     }
 
