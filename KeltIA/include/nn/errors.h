@@ -11,3 +11,6 @@ typedef enum
     NN_ERR_WRITE = ERR_CUSTOM_BASE - 5,
     NN_ERR_NULL_POINTER = ERR_CUSTOM_BASE - 10,
 } ErrorCode;
+
+void print_nn_error(ErrorCode err, const char *context);
+const char *nn_error_to_string(ErrorCode err);
