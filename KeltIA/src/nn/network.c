@@ -1,4 +1,5 @@
 #include "../../include/nn/include_nn.h"
+#include <stdio.h>
 
 void free_nn(NeuronalNetwork *nn)
 {
@@ -21,6 +22,17 @@ NeuronalNetwork *create_nn(size_t n_inputs, size_t n_layers,
 
     for (size_t i = 0; i < n_layers; i++)
     {
+        Layer *l = calloc(1, sizeof(Layer));
+
+        int inputs = (i == 0) ? n_inputs : neurons_per_layer[i - 1];
+        int err = create_layer(l, inputs, neurons_per_layer[i]);
+        if (err != 0)
+        {
+            fprintf(stderr, "network.c: Error creating layer\n");
+            return NULL;
+        }
+
+        /*
         Layer *l = &nn->layers[i];
         l->n_inputs = (i == 0) ? n_inputs : neurons_per_layer[i - 1];
         l->n_neurons = neurons_per_layer[i];
@@ -28,6 +40,7 @@ NeuronalNetwork *create_nn(size_t n_inputs, size_t n_layers,
         l->weights = malloc(sizeof(double) * l->n_inputs * l->n_neurons);
         l->bias = malloc(sizeof(double) * l->n_neurons);
         l->output = malloc(sizeof(double) * l->n_neurons);
+         */
     }
 
     return nn;

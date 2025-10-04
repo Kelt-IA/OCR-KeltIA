@@ -6,7 +6,7 @@
 #define MAGIC "NNET"
 #define MAGIC_SIZE 4
 
-int save_nn(char *path, const NeuronalNetwork *nn);
+int save_nn(const char *path, const NeuronalNetwork *nn);
 int load_nn(const char *path, NeuronalNetwork *out_nn);
 
 // structure of custom file:

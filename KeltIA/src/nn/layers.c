@@ -1,4 +1,6 @@
 #include "../../include/nn/include_nn.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 void free_layer(Layer *layer)
@@ -22,22 +24,22 @@ void foward_layer(Layer *layer, double *input, Activation f)
     }
 }
 
-Layer create_layer(size_t n_inputs, size_t n_neurons)
+int create_layer(Layer *l, size_t n_inputs, size_t n_neurons)
 {
-    Layer l;
-    l.n_inputs = n_inputs;
-    l.n_neurons = n_neurons;
+    l->n_inputs = n_inputs;
+    l->n_neurons = n_neurons;
 
-    l.weights = malloc(sizeof(double) * n_inputs * n_neurons);
-    l.bias = malloc(sizeof(double) * n_neurons);
-    l.output = malloc(sizeof(double) * n_neurons);
+    l->weights = calloc(n_inputs * n_neurons, sizeof(double));
+    l->bias = calloc(n_neurons, sizeof(double));
+    l->output = calloc(n_neurons, sizeof(double));
 
-    // Initialize weights and biases
-    for (size_t i = 0; i < n_inputs * n_neurons; i++) l.weights[i] = 0.0;
-    for (size_t i = 0; i < n_neurons; i++) l.bias[i] = 0.0;
-    for (size_t i = 0; i < n_neurons; i++) l.output[i] = 0.0;
+    if (!l->weights || !l->bias || !l->output)
+    {
+        fprintf(stderr, "layers.c: Error allocating memory \n");
+        return 1;
+    }
 
-    return l;
+    return 0;
 }
 
 void load_weights(Layer *layer, double *weights)
