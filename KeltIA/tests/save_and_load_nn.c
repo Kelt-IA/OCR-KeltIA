@@ -139,8 +139,8 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
 {
     if (verbose)
     {
-        printf(COLOR_BLUE "\n========================================\n");
-        printf("    Neural Network Comparison\n");
+        printf(COLOR_BLUE "\n ========================================\n");
+        printf("      Neural Network Comparison\n");
         printf("========================================\n" COLOR_RESET);
         printf("Inputs: %zu | Layers: %zu\n", a->n_inputs, a->n_layers);
     }
@@ -257,7 +257,7 @@ int test_load_nn()
     return 1;
 }
 
-int test_write_and_load()
+int test_write_and_load(int verbose)
 {
     NeuronalNetwork a;
     xor_nn(&a);
@@ -267,7 +267,7 @@ int test_write_and_load()
     memset(&b, 0, sizeof(NeuronalNetwork));
     load_nn(TEST_FILE, &b);
 
-    int equal = compare_nn(&a, &b, 1);
+    int equal = compare_nn(&a, &b, verbose);
 
     free_nn(&a);
     free_nn(&b);
