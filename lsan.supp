@@ -1,0 +1,13 @@
+leak:FcFontSetList
+leak:pango_layout_get_unknown_glyphs_count
+leak:gtk_module_init
+leak:g_type_create_instance
+leak:FcFontSetMatch
+leak:FcFontRenderPrepare
+leak:FcInit
+leak:pango_layout_get_unknown_glyphs_count
+leak:g_type_create_instance
+leak:FcPatternBuild
+leak:cairo_ft_font_face_get_type
+leak:gtk_widget_get_preferred_height
+

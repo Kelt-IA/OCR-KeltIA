@@ -69,3 +69,8 @@ KeltIA/keltai
 KeltIA/solver
 KeltIA/tests
 KeltIA/train_xnor
+
+# glade tmp files
+~*.glade
+*.glade~
+\#*.glade\#
