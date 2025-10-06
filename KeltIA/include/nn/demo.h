@@ -1,4 +1,5 @@
 #pragma once
 
 #include "network.h"
-NeuronalNetwork *xor_nn();
+
+void xor_nn(NeuronalNetwork *nn);

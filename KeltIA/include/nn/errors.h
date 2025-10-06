@@ -1,0 +1,16 @@
+#pragma once
+
+typedef enum
+{
+    NN_ERR_OK = 0,
+    ERR_CUSTOM_BASE = -1000,
+    NN_ERR_FILE_OPEN = ERR_CUSTOM_BASE - 1,
+    NN_ERR_FORMAT = ERR_CUSTOM_BASE - 2,
+    NN_ERR_MEMORY = ERR_CUSTOM_BASE - 3,
+    NN_ERR_READ = ERR_CUSTOM_BASE - 4,
+    NN_ERR_WRITE = ERR_CUSTOM_BASE - 5,
+    NN_ERR_NULL_POINTER = ERR_CUSTOM_BASE - 10,
+} ErrorCode;
+
+void print_nn_error(ErrorCode err, const char *context);
+const char *nn_error_to_string(ErrorCode err);
