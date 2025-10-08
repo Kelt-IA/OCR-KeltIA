@@ -24,14 +24,16 @@ void foward_layer(Layer *layer, double *input, Activation f)
     }
 }
 
-int create_layer(Layer *l, size_t n_inputs, size_t n_neurons)
+int create_layer(Layer *l, size_t n_inputs, size_t n_neurons, unsigned int SEED)
 {
     l->n_inputs = n_inputs;
     l->n_neurons = n_neurons;
 
-    l->weights = calloc(n_inputs * n_neurons, sizeof(double));
     l->bias = calloc(n_neurons, sizeof(double));
     l->output = calloc(n_neurons, sizeof(double));
+
+    l->weights = calloc(n_inputs * n_neurons, sizeof(double));
+    init_weights_deterministic(l->weights, n_inputs * n_neurons, SEED);
 
     if (!l->weights || !l->bias || !l->output)
     {
@@ -40,6 +42,19 @@ int create_layer(Layer *l, size_t n_inputs, size_t n_neurons)
     }
 
     return 0;
+}
+
+void init_weights_deterministic(double *weights, size_t count,
+                                unsigned int seed)
+{
+    // a fixed SEED for dev pourposes
+    srand(seed);
+
+    for (size_t i = 0; i < count; i++)
+    {
+        // Values between -0.5 y 0.5
+        weights[i] = ((double)rand() / RAND_MAX) - 0.5;
+    }
 }
 
 void load_weights(Layer *layer, double *weights)
