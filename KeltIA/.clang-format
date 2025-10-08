@@ -16,3 +16,8 @@ SpaceBeforeParens: ControlStatements  # space before parentheses in if/for/while
 SortIncludes: true
 IncludeBlocks: Preserve
 ReflowComments: true
+
+# Python-style function parameter formatting
+AlignAfterOpenBracket: BlockIndent  # put closing parenthesis on its own line
+BinPackParameters: false            # one parameter per line
+AllowAllParametersOfDeclarationOnNextLine: false  # force line break after opening paren
