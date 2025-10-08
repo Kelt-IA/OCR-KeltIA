@@ -58,16 +58,24 @@ dkms.conf
 
 *.nn
 */build
-
 .vscode/
 
 # Executables
 KeltIA/bin/
 
+KeltIA/apply_rotation
+KeltIA/detectzones
+KeltIA/image_correction
+KeltIA/keltai
+KeltIA/solver
+KeltIA/tests
+KeltIA/train_xnor
+KeltIA/tests/*.nn
+KeltIA/test_executable
+
 # glade tmp files
 ~*.glade
-*.glade~
+*.galde~
 \#*.glade\#
-
 
 */clangd.yaml
