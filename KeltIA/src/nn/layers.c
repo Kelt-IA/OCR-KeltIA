@@ -44,8 +44,11 @@ int create_layer(Layer *l, size_t n_inputs, size_t n_neurons, unsigned int SEED)
     return 0;
 }
 
-void init_weights_deterministic(double *weights, size_t count,
-                                unsigned int seed)
+void init_weights_deterministic(
+    double *weights,
+    size_t count,
+    unsigned int seed
+)
 {
     // a fixed SEED for dev pourposes
     srand(seed);
@@ -59,8 +62,10 @@ void init_weights_deterministic(double *weights, size_t count,
 
 void load_weights(Layer *layer, double *weights)
 {
-    memcpy(layer->weights, weights,
-           sizeof(double) * layer->n_neurons * layer->n_inputs);
+    memcpy(
+        layer->weights, weights,
+        sizeof(double) * layer->n_neurons * layer->n_inputs
+    );
 }
 
 void load_biases(Layer *layer, double *biases)
@@ -83,8 +88,10 @@ ErrorCode load_weights_from_fs(FILE *f, Layer *layer)
             fprintf(stderr, "layers.c: ERROR: File read error\n");
         }
 
-        fprintf(stderr, "layers.c: (weights) written: %ld expected: %ld\n",
-                written, count);
+        fprintf(
+            stderr, "layers.c: (weights) written: %ld expected: %ld\n", written,
+            count
+        );
         return NN_ERR_READ;
     }
 
@@ -105,8 +112,10 @@ ErrorCode load_biases_from_fs(FILE *f, Layer *layer)
         {
             fprintf(stderr, "layers.c: ERROR: File read error\n");
         }
-        fprintf(stderr, "layers.c: (biases) written: %ld expected: %ld\n",
-                written, count);
+        fprintf(
+            stderr, "layers.c: (biases) written: %ld expected: %ld\n", written,
+            count
+        );
         return NN_ERR_READ;
     }
 

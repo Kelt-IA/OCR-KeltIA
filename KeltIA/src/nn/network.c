@@ -10,9 +10,13 @@ void free_nn(NeuronalNetwork *nn)
     if (nn->layers) free(nn->layers);
 }
 
-ErrorCode create_nn(size_t n_inputs, size_t n_layers,
-                    size_t neurons_per_layer[n_layers], NeuronalNetwork *out_nn,
-                    unsigned int SEED)
+ErrorCode create_nn(
+    size_t n_inputs,
+    size_t n_layers,
+    size_t neurons_per_layer[n_layers],
+    NeuronalNetwork *out_nn,
+    unsigned int SEED
+)
 {
     out_nn->n_inputs = n_inputs;
     out_nn->n_layers = n_layers;
@@ -21,8 +25,9 @@ ErrorCode create_nn(size_t n_inputs, size_t n_layers,
     for (size_t i = 0; i < n_layers; i++)
     {
         int inputs = (i == 0) ? n_inputs : neurons_per_layer[i - 1];
-        int err = create_layer(&out_nn->layers[i], inputs, neurons_per_layer[i],
-                               SEED);
+        int err = create_layer(
+            &out_nn->layers[i], inputs, neurons_per_layer[i], SEED
+        );
         if (err != 0)
         {
             // Limpia layers creados hasta ahora
@@ -36,8 +41,12 @@ ErrorCode create_nn(size_t n_inputs, size_t n_layers,
     return NN_ERR_OK;
 }
 
-void compute_nn(NeuronalNetwork *nn, double *input, double *output,
-                Activation f)
+void compute_nn(
+    NeuronalNetwork *nn,
+    double *input,
+    double *output,
+    Activation f
+)
 {
     double *in = input;
     for (size_t l = 0; l < nn->n_layers; l++)

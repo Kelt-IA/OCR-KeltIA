@@ -21,8 +21,11 @@ void print_double_array_compact(const double *arr, size_t size)
     printf("]");
 }
 
-void print_weights_matrix(const double *weights, size_t n_neurons,
-                          size_t n_inputs)
+void print_weights_matrix(
+    const double *weights,
+    size_t n_neurons,
+    size_t n_inputs
+)
 {
     printf("  [\n");
     for (size_t neuron = 0; neuron < n_neurons; neuron++)
@@ -41,8 +44,12 @@ void print_weights_matrix(const double *weights, size_t n_neurons,
     printf("  ]");
 }
 
-int compare_layers(const Layer *a, const Layer *b, int verbose,
-                   size_t layer_idx)
+int compare_layers(
+    const Layer *a,
+    const Layer *b,
+    int verbose,
+    size_t layer_idx
+)
 {
     int result = 1;
 
@@ -56,8 +63,10 @@ int compare_layers(const Layer *a, const Layer *b, int verbose,
     {
         if (verbose)
         {
-            printf(COLOR_RED "✗ n_inputs: %zu vs %zu\n" COLOR_RESET,
-                   a->n_inputs, b->n_inputs);
+            printf(
+                COLOR_RED "✗ n_inputs: %zu vs %zu\n" COLOR_RESET, a->n_inputs,
+                b->n_inputs
+            );
         }
         return 0;
     }
@@ -66,8 +75,10 @@ int compare_layers(const Layer *a, const Layer *b, int verbose,
     {
         if (verbose)
         {
-            printf(COLOR_RED "✗ n_neurons: %zu vs %zu\n" COLOR_RESET,
-                   a->n_neurons, b->n_neurons);
+            printf(
+                COLOR_RED "✗ n_neurons: %zu vs %zu\n" COLOR_RESET, a->n_neurons,
+                b->n_neurons
+            );
         }
         return 0;
     }
@@ -149,8 +160,10 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
     {
         if (verbose)
         {
-            printf(COLOR_RED "✗ n_inputs: %zu vs %zu\n" COLOR_RESET,
-                   a->n_inputs, b->n_inputs);
+            printf(
+                COLOR_RED "✗ n_inputs: %zu vs %zu\n" COLOR_RESET, a->n_inputs,
+                b->n_inputs
+            );
         }
         return 0;
     }
@@ -159,8 +172,10 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
     {
         if (verbose)
         {
-            printf(COLOR_RED "✗ n_layers: %zu vs %zu\n" COLOR_RESET,
-                   a->n_layers, b->n_layers);
+            printf(
+                COLOR_RED "✗ n_layers: %zu vs %zu\n" COLOR_RESET, a->n_layers,
+                b->n_layers
+            );
         }
         return 0;
     }
@@ -177,15 +192,19 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
 
     if (verbose)
     {
-        printf(COLOR_BLUE
-               "\n========================================\n" COLOR_RESET);
+        printf(
+            COLOR_BLUE
+            "\n========================================\n" COLOR_RESET
+        );
         if (all_match)
         {
             printf(COLOR_GREEN "       ✓ NETWORKS IDENTICAL\n" COLOR_RESET);
         }
         else { printf(COLOR_RED "       ✗ NETWORKS DIFFERENT\n" COLOR_RESET); }
-        printf(COLOR_BLUE
-               "========================================\n\n" COLOR_RESET);
+        printf(
+            COLOR_BLUE
+            "========================================\n\n" COLOR_RESET
+        );
     }
 
     return all_match;
