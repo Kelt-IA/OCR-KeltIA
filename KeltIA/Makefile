@@ -63,6 +63,7 @@ clean-main:
 # Clean test build files
 clean-test:
 	rm -rf $(TEST_BUILD_DIR) $(TEST_TARGET)
+	rm xor.nn
 
 # Clean everything
 clean: clean-main clean-test
