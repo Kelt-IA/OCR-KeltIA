@@ -45,8 +45,9 @@ ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
 
         fwrite(&nn->layers[i].n_neurons, sizeof(size_t), 1, f);
 
-        count_written = fwrite(nn->layers[i].bias, sizeof(double),
-                               nn->layers[i].n_neurons, f);
+        count_written = fwrite(
+            nn->layers[i].bias, sizeof(double), nn->layers[i].n_neurons, f
+        );
 
         if (count_written != nn->layers[i].n_neurons)
         {
@@ -55,9 +56,10 @@ ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
             return NN_ERR_WRITE;
         }
 
-        count_written =
-            fwrite(nn->layers[i].weights, sizeof(double),
-                   nn->layers[i].n_neurons * nn->layers[i].n_inputs, f);
+        count_written = fwrite(
+            nn->layers[i].weights, sizeof(double),
+            nn->layers[i].n_neurons * nn->layers[i].n_inputs, f
+        );
 
         if (count_written != nn->layers[i].n_neurons * nn->layers[i].n_inputs)
         {
@@ -83,8 +85,10 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
     if (memcmp(magic, MAGIC, MAGIC_SIZE) != 0)
     {
         fclose(f);
-        fprintf(stderr,
-                "network_io: file provided does not have the correct format\n");
+        fprintf(
+            stderr,
+            "network_io: file provided does not have the correct format\n"
+        );
         return NN_ERR_FORMAT;
     }
 
@@ -109,7 +113,9 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
         size_t neurons;
         fread(&neurons, sizeof(size_t), 1, f);
 
-        int err = create_layer(&out_nn->layers[i], prev_neurons, neurons);
+        int err = create_layer(
+            &out_nn->layers[i], prev_neurons, neurons, WEIGHT_INIT_SEED
+        );
         if (err != 0)
         {
             fclose(f);

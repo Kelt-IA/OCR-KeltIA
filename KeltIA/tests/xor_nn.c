@@ -32,8 +32,10 @@ int test_xor_nn()
             all_correct = 0;
         }
 
-        printf("%.0f XOR %.0f = %.2f (expected %.0f)\n", input[0], input[1],
-               output[0], expected);
+        printf(
+            "%.0f XOR %.0f = %.2f (expected %.0f)\n", input[0], input[1],
+            output[0], expected
+        );
     }
 
     free_nn(&nn);

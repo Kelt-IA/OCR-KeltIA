@@ -17,10 +17,21 @@ typedef struct
 
 void free_layer(Layer *layer);
 void foward_layer(Layer *layer, double *input, Activation f);
-int create_layer(Layer *layer, size_t n_inputs, size_t n_neurons);
+int create_layer(
+    Layer *layer,
+    size_t n_inputs,
+    size_t n_neurons,
+    unsigned int SEED
+);
 
 void load_weights(Layer *layer, double *weights);
 void load_biases(Layer *layer, double *weights);
+
+void init_weights_deterministic(
+    double *weights,
+    size_t count,
+    unsigned int SEED
+);
 
 ErrorCode load_weights_from_fs(FILE *f, Layer *layer);
 ErrorCode load_biases_from_fs(FILE *f, Layer *layer);

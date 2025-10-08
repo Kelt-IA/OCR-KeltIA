@@ -13,8 +13,16 @@ typedef struct
 } NeuronalNetwork;
 
 void free_nn(NeuronalNetwork *nn);
-void compute_nn(NeuronalNetwork *nn, double *input, double *output,
-                Activation f);
-ErrorCode create_nn(size_t n_inputs, size_t n_layers,
-                    size_t neurons_per_layer[n_layers],
-                    NeuronalNetwork *out_nn);
+void compute_nn(
+    NeuronalNetwork *nn,
+    double *input,
+    double *output,
+    Activation f
+);
+ErrorCode create_nn(
+    size_t n_inputs,
+    size_t n_layers,
+    size_t neurons_per_layer[n_layers],
+    NeuronalNetwork *out_nn,
+    unsigned int SEED
+);
