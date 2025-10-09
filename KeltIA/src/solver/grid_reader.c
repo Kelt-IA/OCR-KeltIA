@@ -102,3 +102,12 @@ char **readFile(const char *filename, int *rows, int *cols)
 
     return result;
 }
+
+void free_grid(char **grid)
+{
+    if (grid)
+    {
+        free(grid[0]);
+        free(grid);
+    }
+}

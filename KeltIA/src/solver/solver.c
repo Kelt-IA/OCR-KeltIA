@@ -105,6 +105,6 @@ int main(int argc, char *argv[])
 
     solver(*grid, height, width, word, word_len);
 
-    free(grid);
+    free_grid(grid);
     return 0;
 }
