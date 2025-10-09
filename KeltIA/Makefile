@@ -6,6 +6,7 @@ SRC_DIR = src
 BUILD_DIR = build
 TEST_DIR = tests
 TEST_BUILD_DIR = build/tests
+SOLVER_BUILD_DIR = build/solver
 
 # executable files
 SRCS = $(shell find $(SRC_DIR) -name '*.c')
@@ -18,8 +19,15 @@ TEST_OBJS = $(patsubst $(TEST_DIR)/%.c,$(TEST_BUILD_DIR)/%.o,$(TEST_SRCS))
 # Source objects excluding main.c to avoid conflict with test main
 SRC_OBJS_NO_MAIN = $(filter-out $(BUILD_DIR)/main.o,$(OBJS))
 
+# Source objects excluding both main.c and solver.c for main executable
+SRC_OBJS_MAIN = $(filter-out $(BUILD_DIR)/solver/solver.o,$(OBJS))
+
+# Source objects excluding main.c but including solver.c for solver executable
+SRC_OBJS_SOLVER = $(filter-out $(BUILD_DIR)/main.o,$(OBJS))
+
 TARGET = ketlia
 TEST_TARGET = test_executable
+SOLVER_TARGET = solver
 
 all: $(BUILD_DIR) $(TARGET)
 
@@ -32,8 +40,8 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Final executable
-$(TARGET): $(OBJS)
+# Final executable (excludes solver.c)
+$(TARGET): $(SRC_OBJS_MAIN)
 	$(CC) $^ -o $@ $(LDFLAGS)
 
 
@@ -56,6 +64,20 @@ $(TEST_TARGET): $(TEST_BUILD_DIR) $(SRC_OBJS_NO_MAIN) $(TEST_OBJS)
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
+
+# --- SOLVER ---
+
+# Create solver build directory
+$(SOLVER_BUILD_DIR):
+	mkdir -p $(SOLVER_BUILD_DIR)
+
+# Solver executable (uses all objects except main.o)
+$(SOLVER_TARGET): $(BUILD_DIR) $(SRC_OBJS_SOLVER)
+	$(CC) $(SRC_OBJS_SOLVER) -o $@ $(LDFLAGS)
+
+
+# --- CLEAN TARGETS ---
+
 # Clean main program build files
 clean-main:
 	rm -rf $(BUILD_DIR)/nn/*.o $(BUILD_DIR)/main.o $(TARGET)
@@ -63,9 +85,14 @@ clean-main:
 # Clean test build files
 clean-test:
 	rm -rf $(TEST_BUILD_DIR) $(TEST_TARGET)
-	rm xor.nn
+	rm -f xor.nn
+
+# Clean solver build files
+clean-solver:
+	rm -rf $(SOLVER_TARGET)
 
 # Clean everything
-clean: clean-main clean-test
+clean: clean-main clean-test clean-solver
+	rm -rf $(BUILD_DIR)
 
-.PHONY: all clean
+.PHONY: all clean clean-main clean-test clean-solver test solver
