@@ -17,6 +17,8 @@ typedef struct
 
 void free_layer(Layer *layer);
 void foward_layer(Layer *layer, double *input, Activation f);
+void softmax(Layer *layer);
+
 int create_layer(
     Layer *layer,
     size_t n_inputs,

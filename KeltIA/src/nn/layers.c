@@ -1,4 +1,5 @@
 #include "../../include/nn/include_nn.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,6 +43,23 @@ int create_layer(Layer *l, size_t n_inputs, size_t n_neurons, unsigned int SEED)
     }
 
     return 0;
+}
+
+// This function is only used for the last layer of the
+// neuronal network in order for the sum of all the outputs = 1
+void softmax(Layer *layer)
+{
+    for (int j = 0; j < layer->n_neurons; j++)
+    {
+        double sum = 0;
+        for (int i = 0; i < layer->n_inputs; i++)
+        {
+            sum += exp(layer->output[i]);
+            // sum +=  input[i] * layer->weights[j * layer->n_inputs + i];
+        }
+
+        layer->output[j] = exp(layer->output[j]) / sum;
+    }
 }
 
 void init_weights_deterministic(
