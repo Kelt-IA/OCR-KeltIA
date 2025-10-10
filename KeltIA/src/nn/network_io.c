@@ -92,8 +92,6 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
         return NN_ERR_FORMAT;
     }
 
-    // printf("principio\n\n");
-
     fread(&out_nn->n_inputs, sizeof(size_t), 1, f);
     fread(&out_nn->n_layers, sizeof(size_t), 1, f);
 
@@ -123,11 +121,6 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
             return NN_ERR_NULL_POINTER;
         }
 
-        // fread(&out_nn->layers[i].n_neurons, sizeof(size_t), 1, f);
-        // check error
-
-        // out_nn->layers[i].n_inputs = prev_neurons;
-
         // load weights
         ErrorCode err_weight = load_biases_from_fs(f, &out_nn->layers[i]);
         if (err_weight != 0)
@@ -146,17 +139,6 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
 
         prev_neurons = out_nn->layers[i].n_neurons;
     }
-    /*
-    printf("lleguo al final\n");
-    for (size_t i = 0; i < out_nn->n_layers; i++)
-    {
-        printf("biases and weights, layer: %ld \n", i);
-        size_t neurons = out_nn->layers->n_neurons;
-        print_double_array(out_nn->layers[i].bias, out_nn->layers[i].n_neurons);
-        print_double_array(out_nn->layers[i].weights,
-                           out_nn->layers[i].n_neurons);
-    }
-    */
 
     fclose(f);
     return NN_ERR_OK;
