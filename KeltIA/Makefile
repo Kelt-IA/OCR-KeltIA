@@ -75,6 +75,10 @@ $(SOLVER_BUILD_DIR):
 $(SOLVER_TARGET): $(BUILD_DIR) $(SRC_OBJS_SOLVER)
 	$(CC) $(SRC_OBJS_SOLVER) -o $@ $(LDFLAGS)
 
+# Target to compile and run solver
+test-solver: $(SOLVER_TARGET)
+	./tests/solver/test_solver.sh
+
 
 # --- CLEAN TARGETS ---
 
@@ -95,4 +99,4 @@ clean-solver:
 clean: clean-main clean-test clean-solver
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all clean clean-main clean-test clean-solver test solver
+.PHONY: all clean clean-main clean-test clean-solver test test-solver

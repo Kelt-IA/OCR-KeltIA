@@ -91,7 +91,12 @@ int main(int argc, char *argv[])
 
     char **grid;
     grid = readFile(file, &height, &width);
-    if (*grid == NULL) exit(1);
+    if (grid == NULL)
+    {
+        printf("There was an error reading the file provided\n");
+        free_grid(grid);
+        exit(1);
+    }
 
     // // grid
     // int height = 9;
