@@ -1,8 +1,6 @@
 #include "../../include/solver/include_solver.h"
 #include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 /*
 The main function is solver(grid, word).
@@ -69,47 +67,4 @@ void solver(char *grid, int height, int width, const char *word, int word_len)
     }
     printf("Not Found\n");
     return;
-}
-
-int main(int argc, char *argv[])
-{
-    if (argc != 3)
-        errx(1, "Missing arguments. Expected : ./solver [file] [word]");
-
-    char *file = argv[1];
-    char *word = argv[2];
-
-    int word_len = strlen(word);
-
-    // Capitalize the Word
-    for (int i = 0; i < word_len; i++)
-        if ('a' <= word[i] && word[i] <= 'z') word[i] -= 32;  // 32 = 'a'-'A';
-
-    // TODO : File as parameter.
-    int height;
-    int width;
-
-    char **grid;
-    grid = readFile(file, &height, &width);
-    if (grid == NULL)
-    {
-        printf("There was an error reading the file provided\n");
-        free_grid(grid);
-        exit(1);
-    }
-
-    // // grid
-    // int height = 9;
-    // int width = 10;
-    // char *grid = malloc(height * width * sizeof(char));
-    // char data[9][11] = {"HORIZONTAL", "DXRAHCLBGA", "DIKCILEOKC",
-    //                     "IGAJHYLYHI", "HGFGODTIOT", "GDLROWKBFR",
-    //                     "PLNRDNERGE", "JHAIDUAJGV", "UKGFFOLLEH"};
-    // for (int i = 0; i < height; i++)
-    //     for (int j = 0; j < width; j++) grid[i * width + j] = data[i][j];
-
-    solver(*grid, height, width, word, word_len);
-
-    free_grid(grid);
-    return 0;
 }

@@ -6,9 +6,8 @@ SRC_DIR = src
 BUILD_DIR = build
 TEST_DIR = tests
 TEST_BUILD_DIR = build/tests
-SOLVER_BUILD_DIR = build/solver
 
-# executable files
+# executable files - todos los sources y objetos
 SRCS = $(shell find $(SRC_DIR) -name '*.c')
 OBJS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
@@ -16,14 +15,22 @@ OBJS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 TEST_SRCS = $(shell find $(TEST_DIR) -name '*.c')
 TEST_OBJS = $(patsubst $(TEST_DIR)/%.c,$(TEST_BUILD_DIR)/%.o,$(TEST_SRCS))
 
-# Source objects excluding main.c to avoid conflict with test main
-SRC_OBJS_NO_MAIN = $(filter-out $(BUILD_DIR)/main.o,$(OBJS))
+# ========== INDIVIDUAL MAINS ==========
+MAIN_OBJ = $(BUILD_DIR)/main.o
+SOLVER_MAIN_OBJ = $(BUILD_DIR)/solver/main.o
+TEST_MAIN_OBJ = $(TEST_BUILD_DIR)/main.o
 
-# Source objects excluding both main.c and solver.c for main executable
-SRC_OBJS_MAIN = $(filter-out $(BUILD_DIR)/solver/solver.o,$(OBJS))
+# ========== COMMON BASE (no main files) ==========
+SRC_OBJS_NO_MAINS = $(filter-out $(MAIN_OBJ) $(SOLVER_MAIN_OBJ), $(OBJS))
 
-# Source objects excluding main.c but including solver.c for solver executable
-SRC_OBJS_SOLVER = $(filter-out $(BUILD_DIR)/main.o,$(OBJS))
+# Main executable: common base + main.o
+OBJS_FOR_MAIN = $(SRC_OBJS_NO_MAINS) $(MAIN_OBJ)
+
+# Solver executable: common base + main.o (from src/solver/)
+OBJS_FOR_SOLVER = $(SRC_OBJS_NO_MAINS) $(SOLVER_MAIN_OBJ)
+
+# Test executable: common base + main.o (from tests/)
+OBJS_FOR_TESTS = $(SRC_OBJS_NO_MAINS) $(TEST_OBJS)
 
 TARGET = ketlia
 TEST_TARGET = test_executable
@@ -40,8 +47,8 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Final executable (excludes solver.c)
-$(TARGET): $(SRC_OBJS_MAIN)
+# Final executable (base + main.o)
+$(TARGET): $(OBJS_FOR_MAIN)
 	$(CC) $^ -o $@ $(LDFLAGS)
 
 
@@ -56,9 +63,9 @@ $(TEST_BUILD_DIR)/%.o: $(TEST_DIR)/%.c
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Link test executable (links with src objects except main.o)
-$(TEST_TARGET): $(TEST_BUILD_DIR) $(SRC_OBJS_NO_MAIN) $(TEST_OBJS)
-	$(CC) $(TEST_OBJS) $(SRC_OBJS_NO_MAIN) -o $@ $(LDFLAGS)
+# Link test executable (base + test objects, NO incluye main.o ni main_solver.o)
+$(TEST_TARGET): $(TEST_BUILD_DIR) $(OBJS_FOR_TESTS)
+	$(CC) $(OBJS_FOR_TESTS) -o $@ $(LDFLAGS)
 
 # Target to compile and run tests
 test: $(TEST_TARGET)
@@ -67,13 +74,9 @@ test: $(TEST_TARGET)
 
 # --- SOLVER ---
 
-# Create solver build directory
-$(SOLVER_BUILD_DIR):
-	mkdir -p $(SOLVER_BUILD_DIR)
-
-# Solver executable (uses all objects except main.o)
-$(SOLVER_TARGET): $(BUILD_DIR) $(SRC_OBJS_SOLVER)
-	$(CC) $(SRC_OBJS_SOLVER) -o $@ $(LDFLAGS)
+# Solver executable (base + main_solver.o, NO incluye main.o)
+$(SOLVER_TARGET): $(BUILD_DIR) $(OBJS_FOR_SOLVER)
+	$(CC) $(OBJS_FOR_SOLVER) -o $@ $(LDFLAGS)
 
 # Target to compile and run solver
 test-solver: $(SOLVER_TARGET)
@@ -84,7 +87,7 @@ test-solver: $(SOLVER_TARGET)
 
 # Clean main program build files
 clean-main:
-	rm -rf $(BUILD_DIR)/nn/*.o $(BUILD_DIR)/main.o $(TARGET)
+	rm -rf $(BUILD_DIR)/nn/*.o $(MAIN_OBJ) $(TARGET)
 
 # Clean test build files
 clean-test:
@@ -93,7 +96,7 @@ clean-test:
 
 # Clean solver build files
 clean-solver:
-	rm -rf $(SOLVER_TARGET)
+	rm -rf $(SOLVER_MAIN_OBJ) $(SOLVER_TARGET)
 
 # Clean everything
 clean: clean-main clean-test clean-solver
