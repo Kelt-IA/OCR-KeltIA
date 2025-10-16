@@ -39,7 +39,7 @@ Author: biolix06, Ethanol48, gaelBZH and TirouwwW
     <property name="step-increment">1</property>
     <property name="page-increment">10</property>
   </object>
-  <object class="GtkApplicationWindow">
+  <object class="GtkApplicationWindow" id="main_window">
     <property name="width-request">600</property>
     <property name="height-request">400</property>
     <property name="can-focus">False</property>

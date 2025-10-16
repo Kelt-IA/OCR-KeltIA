@@ -1,5 +1,6 @@
 #include "../../include/window/window.h"
 
+<<<<<<< HEAD
 extern GResource *keltia_get_resource(void);
 
 void init_window(int *argc, char ***argv)
