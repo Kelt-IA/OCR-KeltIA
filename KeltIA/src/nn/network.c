@@ -30,7 +30,6 @@ ErrorCode create_nn(
         );
         if (err != 0)
         {
-            // Limpia layers creados hasta ahora
             for (size_t j = 0; j < i; j++) { free_layer(&out_nn->layers[j]); }
             free(out_nn->layers);
             fprintf(stderr, "network.c: Error creating layer\n");
@@ -63,5 +62,5 @@ void compute_nn(
     for (size_t i = 0; i < last->n_neurons; i++) output[i] = last->output[i];
 
     // ensure sum of all outputs = 1
-    softmax(last);
+    // softmax(last);
 }

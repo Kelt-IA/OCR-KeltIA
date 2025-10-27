@@ -10,10 +10,13 @@ typedef struct
     size_t n_inputs;
     size_t n_neurons;
 
-    double *weights;  // matriz [n_neurons * n_inputs]
+    double *weights;  // matrix [n_neurons * n_inputs]
     double *bias;     // array [n_neurons]
     double *output;   // array [n_neurons]
+    double *z;        // array [n_neurons] // output pre-activation
 } Layer;
+
+#define WEIGHT(layer, i, j) ((layer)->weights[(i) * (layer)->n_inputs + (j)])
 
 void free_layer(Layer *layer);
 void foward_layer(Layer *layer, double *input, Activation f);
