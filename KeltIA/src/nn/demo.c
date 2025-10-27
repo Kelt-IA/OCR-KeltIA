@@ -24,6 +24,13 @@ void xor_nn(NeuronalNetwork *nn)
     load_biases(&nn->layers[1], second_b);
 }
 
+void xor_nn_to_train(NeuronalNetwork *nn)
+{
+    size_t num_neuron_l[2] = {2, 1};
+
+    create_nn(2, 2, num_neuron_l, nn, WEIGHT_INIT_SEED);
+}
+
 /*
 int main()
 {

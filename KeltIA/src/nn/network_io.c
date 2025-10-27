@@ -104,7 +104,7 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
     }
 
     int prev_neurons = out_nn->n_inputs;
-    for (int i = 0; i < out_nn->n_layers; i++)
+    for (size_t i = 0; i < out_nn->n_layers; i++)
     {
         // reading the layers
 
