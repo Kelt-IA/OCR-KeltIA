@@ -24,35 +24,49 @@ void xor_nn(NeuronalNetwork *nn)
     load_biases(&nn->layers[1], second_b);
 }
 
-void xor_nn_to_train(NeuronalNetwork *nn)
+void xor_nn_train(int number_of_epochs)
 {
+    // {input 1, input 2, expected_result}
+    double training_data[4][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+    double expected[4][1] = {{0}, {1}, {1}, {0}};
+
     size_t num_neuron_l[2] = {2, 1};
 
-    create_nn(2, 2, num_neuron_l, nn, WEIGHT_INIT_SEED);
-}
+    NeuronalNetwork nn;
+    create_nn(2, 2, num_neuron_l, &nn, WEIGHT_INIT_SEED);
 
-/*
-int main()
-{
-    NeuronalNetwork *nn = xor_nn();
+    double **deltas = NULL;
+    get_empty_deltas(nn, deltas);
 
-    // Dataset XOR: [x1, x2, expected_output]
-    const int TESTS = 4;
-    double dataset[4][3] = {{0, 0, 0}, {0, 1, 1}, {1, 0, 1}, {1, 1, 0}};
+    double **grad_weights = NULL;
+    double **grad_biases = NULL;
+    get_empty_gradients(nn, grad_weights, grad_biases);
 
-    double input[2];
-    double output[1];
-
-    for (int i = 0; i < TESTS; i++)
+    for (int i = 0; i < number_of_epochs; i++)
     {
-        input[0] = dataset[i][0];
-        input[1] = dataset[i][1];
-        compute_nn(nn, input, output, step);
-        printf("%.0f XOR %.0f = %.0f (expected %.0f)\n", input[0], input[1],
-               output[0], dataset[i][2]);
+        if (i % 100 == 0)
+        {
+            // test nn
+        }
+
+        for (int i = 0; i < 4; i++)
+        {
+            backpropagation(
+                &nn, training_data[i], expected[i], deltas, grad_weights,
+                grad_biases
+            );
+        }
     }
 
-    free_nn(nn);
-    return 0;
+    // frees
+    for (size_t i = 0; i < nn.n_layers; i++) { free(deltas[i]); }
+    free(deltas);
+
+    for (size_t i = 0; i < nn.n_layers; i++)
+    {
+        free(grad_weights[i]);
+        free(grad_biases[i]);
+    }
+    free(grad_weights);
+    free(grad_biases);
 }
-*/
