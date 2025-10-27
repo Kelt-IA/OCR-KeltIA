@@ -1,6 +1,7 @@
 #pragma once
 
 #include "activation.h"
+#include "back-propagation.h"
 #include "config.h"
 #include "demo.h"
 #include "errors.h"
