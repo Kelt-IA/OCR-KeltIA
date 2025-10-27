@@ -10,7 +10,6 @@ void free_layer(Layer *layer)
     if (layer->weights) free(layer->weights);
     if (layer->bias) free(layer->bias);
     if (layer->output) free(layer->output);
-    if (layer->z) free(layer->z);
 }
 
 void foward_layer(Layer *layer, double *input, Activation f)
@@ -23,7 +22,6 @@ void foward_layer(Layer *layer, double *input, Activation f)
             sum += input[i] * layer->weights[j * layer->n_inputs + i];
         }
 
-        layer->z[j] = sum;
         layer->output[j] = f(sum);
     }
 }
@@ -35,7 +33,6 @@ int create_layer(Layer *l, size_t n_inputs, size_t n_neurons, unsigned int SEED)
 
     l->bias = calloc(n_neurons, sizeof(double));
     l->output = calloc(n_neurons, sizeof(double));
-    l->z = calloc(n_neurons, sizeof(double));
 
     l->weights = calloc(n_inputs * n_neurons, sizeof(double));
     init_weights_deterministic(l->weights, n_inputs * n_neurons, SEED);

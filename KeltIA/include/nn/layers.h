@@ -13,7 +13,6 @@ typedef struct
     double *weights;  // matrix [n_neurons * n_inputs]
     double *bias;     // array [n_neurons]
     double *output;   // array [n_neurons]
-    double *z;        // array [n_neurons] // output pre-activation
 } Layer;
 
 #define WEIGHT(layer, i, j) ((layer)->weights[(i) * (layer)->n_inputs + (j)])
