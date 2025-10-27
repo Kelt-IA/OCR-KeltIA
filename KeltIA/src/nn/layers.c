@@ -14,10 +14,10 @@ void free_layer(Layer *layer)
 
 void foward_layer(Layer *layer, double *input, Activation f)
 {
-    for (int j = 0; j < layer->n_neurons; j++)
+    for (size_t j = 0; j < layer->n_neurons; j++)
     {
         double sum = layer->bias[j];
-        for (int i = 0; i < layer->n_inputs; i++)
+        for (size_t i = 0; i < layer->n_inputs; i++)
         {
             sum += input[i] * layer->weights[j * layer->n_inputs + i];
         }
@@ -50,10 +50,10 @@ int create_layer(Layer *l, size_t n_inputs, size_t n_neurons, unsigned int SEED)
 // neuronal network in order for the sum of all the outputs = 1
 void softmax(Layer *layer)
 {
-    for (int j = 0; j < layer->n_neurons; j++)
+    for (size_t j = 0; j < layer->n_neurons; j++)
     {
         double sum = 0;
-        for (int i = 0; i < layer->n_inputs; i++)
+        for (size_t i = 0; i < layer->n_inputs; i++)
         {
             sum += exp(layer->output[i]);
             // sum +=  input[i] * layer->weights[j * layer->n_inputs + i];
