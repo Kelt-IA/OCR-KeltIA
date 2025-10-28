@@ -35,8 +35,8 @@ void solver(char *grid, int height, int width, const char *word, int word_len)
             {
                 for (int d = 0; d < 8; d++)
                 {
-                    int abscisse = directions[d][0];
-                    int ordonnee = directions[d][1];
+                    int row_delta = directions[d][0];
+                    int col_delta = directions[d][1];
 
                     int x = i;
                     int y = j;
@@ -45,15 +45,15 @@ void solver(char *grid, int height, int width, const char *word, int word_len)
                     while (k < word_len && x >= 0 && x < height && y >= 0 &&
                            y < width && grid[x * width + y] == word[k])
                     {
-                        x += abscisse;
-                        y += ordonnee;
+                        x += row_delta;
+                        y += col_delta;
                         k++;
                     }
 
                     if (k == word_len)
                     {
-                        int i2 = x - abscisse;
-                        int j2 = y - ordonnee;
+                        int i2 = x - row_delta;
+                        int j2 = y - col_delta;
 
                         printf(
                             "(%i,%i)(%i,%i)\n", j, i, j2, i2
