@@ -13,7 +13,7 @@ typedef enum
     ACTIVATION_STEP,        // 2
 } ActivationType;
 
-typedef double (*ActivationFunction)(double);
-typedef double (*DerivativeFunction)(double, double);  // (z, a)
+typedef double (*ActivationFunction)(double a);
+typedef double (*DerivativeFunction)(double z, double a);
 
 ActivationType int_to_activation(int value);

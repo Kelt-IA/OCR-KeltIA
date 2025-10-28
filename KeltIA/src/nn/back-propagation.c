@@ -32,7 +32,9 @@ void delta_output(
     for (size_t i = 0; i < last_layer->n_neurons; i++)
     {
         double error = last_layer->output[i] - expected[i];
-        double deriv = last_layer->output[i] * (1 - last_layer->output[i]);
+
+        double deriv =
+            last_layer->derivative_fn(last_layer->z[i], last_layer->output[i]);
 
         out_delta[i] = error * deriv;
     }
@@ -72,7 +74,8 @@ void delta_hidden_layer(
             sum += WEIGHT(next_layer, j, i) * next_delta[j];
         }
 
-        double deriv = layer->output[i] * (1 - layer->output[i]);
+        double deriv = layer->derivative_fn(layer->z[i], layer->output[i]);
+        // double deriv = layer->output[i] * (1 - layer->output[i]);
 
         out_delta[i] = sum * deriv;
     }
