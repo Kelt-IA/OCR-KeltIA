@@ -1,6 +1,7 @@
 #pragma once
 
 #include "save_and_load_nn.h"
+#include "train.h"
 #include "utils.h"
 #include "xor_nn.h"
 
