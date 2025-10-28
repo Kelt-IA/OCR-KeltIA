@@ -1,190 +1,335 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-/*
-MatrixPicture : Contains only 0 (white) or 1 (black) values.
-n : Number of rows and columns there should be in the grid.
-seuil : Real number in [0, 1]. Determines the level the square is considered white or black.
-*/
-int** partition(int** MatrixPicture, int num_rows, int num_cols, int n, double seuil) {
-    if (n > num_rows || n > num_cols) {
-        fprintf(stderr, "Erreur : n est trop grand.\n");
-        exit(1);
+#include "../../include/detect_zones/include.h"
+
+int **allocate_matrix(int rows, int cols)
+{
+    int **matrix = malloc(rows * sizeof(int *));
+    for (int i = 0; i < rows; i++)
+    {
+        matrix[i] = calloc(cols, sizeof(int));  // calloc initializes to 0
     }
+    return matrix;
+}
 
-    // grid : n*n matrix initially filled with -1.
-    int** grid = (int**)malloc(n * sizeof(int*));
-    for (int i = 0; i < n; i++) {
-        grid[i] = (int*)malloc(n * sizeof(int));
-        for (int j = 0; j < n; j++) {
-            grid[i][j] = -1;
-        }
-    }
+void free_matrix(int **matrix, int rows)
+{
+    for (int i = 0; i < rows; i++) free(matrix[i]);
+    free(matrix);
+}
 
-    // block : the width or height of the rows or columns corresponding to a single grid cell.
-    int block_h = num_rows / n;
-    int reste_h = num_rows % n;
-    int block_w = num_cols / n;
-    int reste_w = num_cols % n;
+int **partition(int **image, int rows, int cols, int n, double threshold)
+{
+    int **grid = allocate_matrix(n, n);
 
-    int x = 0;
-    for (int a = 0; a < n; a++) {
-        int h = block_h + (a < reste_h);
-        int a2;  // <-- Déclaration corrigée ici
-        int y = 0;
-        for (int b = 0; b < n; b++) {
-            int w = block_w + (b < reste_w);
+    int block_h = rows / n;
+    int block_w = cols / n;
 
-            int b2 = (y + w < num_cols) ? y + w : num_cols;
-            a2 = (x + h < num_rows) ? x + h : num_rows;
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            // Calculate block boundaries
+            int start_row = i * block_h + (i < rows % n ? i : rows % n);
+            int end_row = start_row + block_h + (i < rows % n ? 1 : 0);
+            int start_col = j * block_w + (j < cols % n ? j : cols % n);
+            int end_col = start_col + block_w + (j < cols % n ? 1 : 0);
 
-            // Checks if current square contains more black pixels than white according to the seuil.
-            int total = 0;
-            int nb = 0;
-            for (int i = x; i < a2; i++) {
-                for (int j = y; j < b2; j++) {
-                    total += MatrixPicture[i][j];
-                    nb += 1;
+            // Count black pixels
+            int black_pixels = 0, total_pixels = 0;
+            for (int r = start_row; r < end_row && r < rows; r++)
+            {
+                for (int c = start_col; c < end_col && c < cols; c++)
+                {
+                    black_pixels += image[r][c];
+                    total_pixels++;
                 }
             }
 
-            double moyenne = (double)total / nb;
-            int contains_word = (moyenne > seuil) ? 1 : 0;
-            grid[a][b] = contains_word;
-
-            y = b2;  // avancer horizontalement
+            grid[i][j] =
+                ((double)black_pixels / total_pixels > threshold) ? 1 : 0;
         }
-        x = a2;  // avancer verticalement
     }
 
     return grid;
 }
 
-/*
-Takes as parameter a matrix.
-Returns the location of the two main rectangles.
-We advise to apply partition() before applying find_rectangles().
-*/
-typedef struct {
-    int r1, c1;
-    int r2, c2;
-} Rectangle;
+// ============= DFS AND RECTANGLE SEARCH =============
+void dfs(
+    int **matrix,
+    int **visited,
+    int rows,
+    int cols,
+    int x,
+    int y,
+    Rectangle *rect
+)
+{
+    if (x < 0 || x >= rows || y < 0 || y >= cols || visited[x][y] ||
+        matrix[x][y] != 1)
+        return;
 
-Rectangle* find_rectangles(int** matrix, int rows, int cols, int* rect_count) {
-    int** visited = (int**)malloc(rows * sizeof(int*));
-    for (int i = 0; i < rows; i++) {
-        visited[i] = (int*)calloc(cols, sizeof(int));
-    }
+    visited[x][y] = 1;
 
-    Rectangle* rectangles = (Rectangle*)malloc(rows * cols * sizeof(Rectangle));
-    int rect_idx = 0;
+    // Update rectangle boundaries
+    if (x < rect->r1) rect->r1 = x;
+    if (x > rect->r2) rect->r2 = x;
+    if (y < rect->c1) rect->c1 = y;
+    if (y > rect->c2) rect->c2 = y;
 
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            if (matrix[i][j] == 1 && visited[i][j] == 0) {
-                // Stack for DFS
-                int stack_size = rows * cols;
-                int (*stack)[2] = malloc(stack_size * sizeof *stack);
-                int top = 0;
-                stack[top][0] = i;
-                stack[top][1] = j;
-                top++;
+    // Explore neighbors (4 directions)
+    dfs(matrix, visited, rows, cols, x - 1, y, rect);
+    dfs(matrix, visited, rows, cols, x + 1, y, rect);
+    dfs(matrix, visited, rows, cols, x, y - 1, rect);
+    dfs(matrix, visited, rows, cols, x, y + 1, rect);
+}
 
-                int min_r = i, max_r = i, min_c = j, max_c = j;
+Rectangle *find_rectangles(int **matrix, int rows, int cols, int *count)
+{
+    int **visited = allocate_matrix(rows, cols);
+    Rectangle *rectangles = malloc(rows * cols * sizeof(Rectangle));
+    *count = 0;
 
-                while (top > 0) {
-                    top--;
-                    int x = stack[top][0];
-                    int y = stack[top][1];
-                    if (visited[x][y] == 1) continue;
-                    visited[x][y] = 1;
-
-                    if (x < min_r) min_r = x;
-                    if (x > max_r) max_r = x;
-                    if (y < min_c) min_c = y;
-                    if (y > max_c) max_c = y;
-
-                    // Neighbours
-                    if (x > 0 && matrix[x - 1][y] == 1 && visited[x - 1][y] == 0) {
-                        stack[top][0] = x - 1; stack[top][1] = y; top++;
-                    }
-                    if (x < rows - 1 && matrix[x + 1][y] == 1 && visited[x + 1][y] == 0) {
-                        stack[top][0] = x + 1; stack[top][1] = y; top++;
-                    }
-                    if (y > 0 && matrix[x][y - 1] == 1 && visited[x][y - 1] == 0) {
-                        stack[top][0] = x; stack[top][1] = y - 1; top++;
-                    }
-                    if (y < cols - 1 && matrix[x][y + 1] == 1 && visited[x][y + 1] == 0) {
-                        stack[top][0] = x; stack[top][1] = y + 1; top++;
-                    }
-                }
-
-                rectangles[rect_idx].r1 = min_r;
-                rectangles[rect_idx].c1 = min_c;
-                rectangles[rect_idx].r2 = max_r;
-                rectangles[rect_idx].c2 = max_c;
-                rect_idx++;
-
-                free(stack);
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            if (matrix[i][j] == 1 && !visited[i][j])
+            {
+                rectangles[*count] = (Rectangle){i, j, i, j};
+                dfs(matrix, visited, rows, cols, i, j, &rectangles[*count]);
+                (*count)++;
             }
         }
     }
 
-    *rect_count = rect_idx;
+    free_matrix(visited, rows);
     return rectangles;
 }
 
-/*
-Takes 3 parameters and returns the coordinates of the grid, then the coordinates of the words list
-Parameters :
-    - matrix : A matrix of booleans (0 or 1). (0 is white, 1 is black). We are looking for "1" pixels.
-    - n : number of subdivisions. The grid will be a n*n matrix.
-    - seuil : tolerance for 1 pixels proportion per grid square to consider it "1".
-*/
-void main_function(int** matrix, int width, int height, int n, double seuil) {
-    int w = width / n;
-    int h = height / n;
+void detect_zones(int **image, int rows, int cols, int n, double threshold)
+{
+    // Partition image into grid
+    int **grid = partition(image, rows, cols, n, threshold);
 
-    int** smallerMatrix = partition(matrix, width, height, n, seuil);
-
+    // Find rectangles in grid
     int rect_count;
-    Rectangle* rectangles = find_rectangles(smallerMatrix, n, n, &rect_count);
+    Rectangle *rectangles = find_rectangles(grid, n, n, &rect_count);
 
-    if (rect_count < 2) {
-        fprintf(stderr, "Not enough rectangles found. Check threshold or input matrix.\n");
+    if (rect_count < 2)
+    {
+        fprintf(stderr, "Error: Found less than 2 rectangles\n");
+        free_matrix(grid, n);
+        free(rectangles);
+        exit(1);
+    }
+
+    // Identify grid and word list by area
+    int area1 = (rectangles[0].r2 - rectangles[0].r1 + 1) *
+                (rectangles[0].c2 - rectangles[0].c1 + 1);
+    int area2 = (rectangles[1].r2 - rectangles[1].r1 + 1) *
+                (rectangles[1].c2 - rectangles[1].c1 + 1);
+
+    Rectangle *grid_rect = (area1 > area2) ? &rectangles[0] : &rectangles[1];
+    Rectangle *words_rect = (area1 > area2) ? &rectangles[1] : &rectangles[0];
+
+    // Convert to original coordinates
+    int scale_h = rows / n;
+    int scale_w = cols / n;
+
+    printf(
+        "Grid: ((%d, %d), (%d, %d))\n", grid_rect->r1 * scale_h,
+        grid_rect->c1 * scale_w, (grid_rect->r2 + 1) * scale_h,
+        (grid_rect->c2 + 1) * scale_w
+    );
+
+    printf(
+        "Words: ((%d, %d), (%d, %d))\n", words_rect->r1 * scale_h,
+        words_rect->c1 * scale_w, (words_rect->r2 + 1) * scale_h,
+        (words_rect->c2 + 1) * scale_w
+    );
+
+    free_matrix(grid, n);
+    free(rectangles);
+}
+
+int **read_matrix_file(const char *filename, int *rows, int *cols)
+{
+    FILE *file = fopen(filename, "r");
+    if (!file)
+    {
+        fprintf(stderr, "Error: Cannot open %s\n", filename);
+        exit(1);
+    }
+
+    char line[2048];
+    int **matrix = malloc(1000 * sizeof(int *));
+    *rows = 0;
+    *cols = 0;
+
+    while (fgets(line, sizeof(line), file))
+    {
+        int len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') line[--len] = '\0';
+        if (len == 0) continue;
+
+        matrix[*rows] = malloc(len * sizeof(int));
+        for (int i = 0; i < len; i++)
+        {
+            matrix[*rows][i] = (line[i] == '1') ? 1 : 0;
+        }
+
+        if (*cols == 0) *cols = len;
+        (*rows)++;
+    }
+
+    fclose(file);
+    return matrix;
+}
+
+// ============= MATRIX PRINTING FUNCTIONS =============
+
+/**
+ * Prints a matrix in numeric format
+ * @param M: Matrix to print
+ * @param rows: Number of rows
+ * @param cols: Number of columns
+ */
+void print_matrix(int **M, int rows, int cols)
+{
+    printf("=========== Matrix ===========\n");
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++) { printf("%d  ", M[i][j]); }
+        printf("\n");
+    }
+    printf("==============================\n");
+}
+
+#define RESET "\033[0m"
+#define BLACK "\033[40m  \033[0m"         // Black background
+#define WHITE "\033[47m  \033[0m"         // White background
+#define BLUE "\033[44m  \033[0m"          // Blue background
+#define GREEN "\033[42m  \033[0m"         // Green background
+#define RED "\033[41m  \033[0m"           // Red background
+#define ORANGE "\033[48;5;208m  \033[0m"  // Orange background (256 colors)
+
+const char *convert_to_color(int val)
+{
+    switch (val)
+    {
+    case 0:
+        return BLACK;  // Black block
+    case 1:
+        return WHITE;  // White block
+    case 2:
+        return BLUE;  // Blue block
+    case 3:
+        return GREEN;  // Green block
+    case 4:
+        return RED;  // Red block
+    case 5:
+        return ORANGE;  // Orange block
+    default:
+        return "\033[45m??\033[0m";  // Magenta with '??' for unknown
+    }
+}
+
+/**
+ * Prints a matrix using emoji visualization
+ * @param M: Matrix to print
+ * @param rows: Number of rows
+ * @param cols: Number of columns
+ */
+void print_matrix_emoji(int **M, int rows, int cols)
+{
+    printf("============ Matrix ============\n");
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            printf("%s ", convert_to_color(M[i][j]));
+        }
+        printf("\n");
+    }
+    printf("================================\n");
+}
+
+/*
+ * This function tests three stages:
+ *   1. Partition test. Displays the resulting matrix
+ *   2. Find Rectangles test. Displays graphically and numerically
+ *   3. Main function test, numerically
+ */
+void one_function_to_rule_them_all(
+    int **matrix,
+    int width,
+    int height,
+    int n,
+    double threshold
+)
+{
+    printf("▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ STAGE 1 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n");
+
+    // Create the small partitioned matrix
+    int **smallerMatrix = partition(matrix, width, height, n, threshold);
+    print_matrix(smallerMatrix, n, n);
+
+    printf(
+        "\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ STAGE 2 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
+    );
+    int rect_count;
+    Rectangle *rectangles = find_rectangles(smallerMatrix, n, n, &rect_count);
+
+    if (rect_count < 2)
+    {
+        fprintf(stderr, "Not enough rectangles found.\n");
         exit(1);
     }
 
     Rectangle rectangleA = rectangles[0];
     Rectangle rectangleB = rectangles[1];
-    int areaA = (rectangleA.r2 - rectangleA.r1) * (rectangleA.c2 - rectangleA.c1);
-    int areaB = (rectangleB.r2 - rectangleB.r1) * (rectangleB.c2 - rectangleB.c1);
 
+    // Mark corners with colors
+    smallerMatrix[rectangleA.r1][rectangleA.c1] = 2;  // Blue
+    smallerMatrix[rectangleA.r2][rectangleA.c2] = 3;  // Green
+    smallerMatrix[rectangleB.r1][rectangleB.c1] = 4;  // Red
+    smallerMatrix[rectangleB.r2][rectangleB.c2] = 5;  // Orange
+
+    print_matrix_emoji(smallerMatrix, n, n);
+
+    int areaA =
+        (rectangleA.r2 - rectangleA.r1) * (rectangleA.c2 - rectangleA.c1);
+    int areaB =
+        (rectangleB.r2 - rectangleB.r1) * (rectangleB.c2 - rectangleB.c1);
     Rectangle grid, words;
-    if (areaA > areaB) {
+    if (areaA > areaB)
+    {
         grid = rectangleA;
         words = rectangleB;
-    } else {
+    }
+    else
+    {
         grid = rectangleB;
         words = rectangleA;
     }
 
-    // Convert to original matrix coordinates
-    int grid_r1 = grid.r1 * w;
-    int grid_c1 = grid.c1 * h;
-    int grid_r2 = grid.r2 * w;
-    int grid_c2 = (grid.c2 + 1) * h;
+    // Blue and green
+    printf(
+        "\033[34m██ \033[0m\033[32m██\033[0m [grid] Grid coordinates are "
+        "((%d,%d),(%d,%d))\n",
+        grid.r1, grid.c1, grid.r2, grid.c2
+    );
 
-    int words_r1 = words.r1 * w;
-    int words_c1 = words.c1 * h;
-    int words_r2 = words.r2 * w;
-    int words_c2 = (words.c2 + 1) * h;
+    // Red and orange
+    printf(
+        "\033[31m██ \033[0m\033[38;5;208m██\033[0m [words] The word list "
+        "coordinates are ((%d,%d),(%d,%d))\n",
+        words.r1, words.c1, words.r2, words.c2
+    );
 
-    printf("Grid: ((%d, %d), (%d, %d))\n", grid_r1, grid_c1, grid_r2, grid_c2);
-    printf("Words: ((%d, %d), (%d, %d))\n", words_r1, words_c1, words_r2, words_c2);
-
-    // Libération de la mémoire
-    for (int i = 0; i < n; i++) free(smallerMatrix[i]);
-    free(smallerMatrix);
+    free_matrix(smallerMatrix, n);
     free(rectangles);
 }
