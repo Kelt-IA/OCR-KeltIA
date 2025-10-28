@@ -126,7 +126,7 @@ void gradient_weights(
             // previous_layer with neuron i of actual_layer:
             // ∂C/∂w[i][j] = δ[i] * preious_a[j]
 
-            out_gradient[idx] =
+            out_gradient[idx] +=
                 delta_actual_layer[i] * output_previous_layer[j];
         }
     }
@@ -162,7 +162,10 @@ void gradient_biases(
 
     // the gradient of the biases is delta
     // ∂C/∂b[l] = δ[l]
-    memcpy(out_gradient_biases, delta, n_neurons * sizeof(double));
+    // memcpy(out_gradient_biases, delta, n_neurons * sizeof(double));
+
+    // for mini-batches
+    for (size_t i = 0; i < n_neurons; i++) out_gradient_biases[i] += delta[i];
 }
 
 void update_parameters(
