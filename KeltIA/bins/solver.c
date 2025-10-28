@@ -1,4 +1,4 @@
-#include "../../include/solver/include_solver.h"
+#include "../include/solver/include_solver.h"
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
