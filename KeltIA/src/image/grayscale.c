@@ -1,102 +1,143 @@
-/* src/image/grayscale.c
-   Implementation du seuillage (grayscale -> binaire)
-*/
-
+#include <MagickWand/MagickWand.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-#include "../include/image/grayscale.h"
+// Compute the average gray level and return a normalized threshold (0.0–1.0)
 
-#include <MagickWand/MagickWand.h>
-
-/* Helper to normalize threshold to 0..1 */
-static double normalize_threshold(double thr)
+static double compute_average_gray(MagickWand *wand)
 {
-    if (thr <= 0.0) return 0.0;
-    if (thr > 1.0)
+
+    PixelIterator *iterator;
+    PixelWand **pixels;
+    size_t width, height;
+    height = MagickGetImageHeight(wand);
+    width = MagickGetImageWidth(wand);
+
+    // 256-level histogram
+    int hist[256] = {0};
+    iterator = NewPixelIterator(wand);
+    if (iterator == NULL) return 0.5;
+
+    for (size_t y = 0; y < height; y++)
     {
-        /* Suppose input in 0..255 range */
-        return thr / 255.0;
+        pixels = PixelGetNextIteratorRow(iterator, &width);
+        if (pixels == NULL) break;
+        for (size_t x = 0; x < width; x++)
+        {
+            double g = PixelGetRed(pixels[x]);
+            int level = (int)(g * 255.0 + 0.5);
+            if (level < 0) level = 0;
+            if (level > 255) level = 255;
+            hist[level]++;
+        }
     }
-    return thr;
+    iterator = DestroyPixelIterator(iterator);
+
+    size_t total = width * height;
+
+    // Calculation of the optimal threshold (simplified Otsu method)
+    double sum = 0;
+    for (int i = 0; i < 256; i++) sum += i * hist[i];
+
+    double sumB = 0;
+    size_t wB = 0;
+    double maxVar = 0;
+    int threshold = 127;
+
+    for (int i = 0; i < 256; i++)
+    {
+        wB += hist[i];
+        if (wB == 0) continue;
+        size_t wF = total - wB;
+        if (wF == 0) break;
+
+        sumB += (double)i * hist[i];
+        double mB = sumB / wB;
+        double mF = (sum - sumB) / wF;
+        double varBetween = (double)wB * wF * (mB - mF) * (mB - mF);
+
+        if (varBetween > maxVar)
+        {
+            maxVar = varBetween;
+            threshold = i;
+        }
+    }
+
+    // return a normalized value (0.0 - 1.0)
+    return threshold / 255.0;
 }
 
-MagickBooleanType grayscale_threshold_wand(MagickWand *wand, double threshold)
-{
-    if (wand == NULL) return MagickFalse;
+// Perform automatic binarization on an image.
+//     - Convert image to grayscale
+//     - Compute the optimal threshold (Otsu-like)
+//     - Apply binary thresholding
 
-    MagickBooleanType status = MagickTrue;
-    double thr = normalize_threshold(threshold);
-
-    /* Convert image to grayscale colorspace first */
-    status = MagickTransformImageColorspace(wand, GRAYColorspace);
-    if (status == MagickFalse) { return MagickFalse; }
-
-    /* Get ImageMagick quantum range (max value for pixel sample) */
-    size_t quantum_range = 0;
-    /* MagickGetQuantumRange returns a const char *, but also writes the numeric
-     * range into the provided pointer */
-    MagickGetQuantumRange(&quantum_range);
-
-    /* compute threshold in quantum units */
-    double threshold_value = thr * (double)quantum_range;
-
-    /* Apply threshold: pixels < threshold become white, others black (per
-     * MagickThresholdImage doc) */
-    status = MagickThresholdImage(wand, threshold_value);
-
-    return status;
-}
-
-int grayscale_threshold_file(
-    const char *in_path,
-    const char *out_path,
-    double threshold
-)
+MagickBooleanType binarize_image(const char *input_path,
+                                 const char *output_path)
 {
     MagickWand *wand = NULL;
     MagickBooleanType status;
-    int ret = 0;
+    double avg_gray, threshold_value, quantum_range;
 
-    if (in_path == NULL || out_path == NULL) return 1;
+    wand = NewMagickWand();
+    if (MagickReadImage(wand, input_path) == MagickFalse)
+    {
+        fprintf(stderr, "Error: unable to read '%s'\n", input_path);
+        if (wand) wand = DestroyMagickWand(wand);
+        return MagickFalse;
+    }
+
+    MagickSetImageType(wand, GrayscaleType);
+
+    // Compute optimal threshold
+    avg_gray = compute_average_gray(wand);
+    quantum_range = (double)QuantumRange;
+    threshold_value = avg_gray * quantum_range;
+
+    printf("→ Automatic threshold: %.3f (%.0f out of %.0f)\n", avg_gray,
+           threshold_value, quantum_range);
+
+    // Apply binary threshold
+    status = MagickThresholdImage(wand, threshold_value);
+    if (status == MagickFalse)
+    {
+        fprintf(stderr, "Error: thresholding failed.\n");
+        wand = DestroyMagickWand(wand);
+        return MagickFalse;
+    }
+
+    // Save result
+    if (MagickWriteImage(wand, output_path) == MagickFalse)
+    {
+        fprintf(stderr, "Error: unable to write '%s'\n", output_path);
+        wand = DestroyMagickWand(wand);
+        return MagickFalse;
+    }
+
+    printf("Binary image saved to: %s\n", output_path);
+    wand = DestroyMagickWand(wand);
+    return MagickTrue;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc != 3)
+    {
+        errx(1, "Usage: %s <input_image> <output_image>\n", argv[0]);
+    }
+
+    const char *input_path = argv[1];
+    const char *output_path = argv[2];
+    MagickBooleanType result;
 
     MagickWandGenesis();
-    wand = NewMagickWand();
-    if (wand == NULL)
-    {
-        MagickWandTerminus();
-        return 2;
-    }
 
-    status = MagickReadImage(wand, in_path);
-    if (status == MagickFalse)
-    {
-        fprintf(stderr, "Erreur : impossible de lire l'image '%s'\n", in_path);
-        ret = 3;
-        goto cleanup;
-    }
+    result = binarize_image(input_path, output_path);
 
-    status = grayscale_threshold_wand(wand, threshold);
-    if (status == MagickFalse)
-    {
-        fprintf(stderr, "Erreur : échec du seuillage.\n");
-        ret = 4;
-        goto cleanup;
-    }
-
-    status = MagickWriteImage(wand, out_path);
-    if (status == MagickFalse)
-    {
-        fprintf(
-            stderr, "Erreur : impossible d'écrire l'image '%s'\n", out_path
-        );
-        ret = 5;
-        goto cleanup;
-    }
-
-cleanup:
-    if (wand) wand = DestroyMagickWand(wand);
     MagickWandTerminus();
-    return ret;
+
+    if (result == MagickFalse) { errx(1, "Binarization failed."); }
+
+    return 0;
 }

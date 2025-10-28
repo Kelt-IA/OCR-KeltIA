@@ -1,8 +1,7 @@
-#ifndef GRAYSCALE_H
-#define GRAYSCALE_H
-
+#pragma once
 #include <MagickWand/MagickWand.h>
 
+<<<<<<< HEAD
 #ifdef __cplusplus
 extern "C"
 {
@@ -21,3 +20,8 @@ extern "C"
 #endif
 
 #endif
+=======
+static double compute_average_gray(MagickWand *wand);
+MagickBooleanType binarize_image(const char *input_path,
+                                 const char *output_path);
+>>>>>>> a912520 (1)
