@@ -1,6 +1,7 @@
 #include "../../include/nn/include_nn.h"
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 void delta_output(
@@ -68,7 +69,7 @@ void delta_hidden_layer(
         double sum = 0;
         for (size_t j = 0; j < next_layer->n_neurons; j++)
         {
-            sum += WEIGHT(layer, i, j) * next_delta[i];
+            sum += WEIGHT(next_layer, j, i) * next_delta[j];
         }
 
         double deriv = layer->output[i] * (1 - layer->output[i]);
@@ -158,7 +159,7 @@ void gradient_biases(
 
     // the gradient of the biases is delta
     // ∂C/∂b[l] = δ[l]
-    memccpy(out_gradient_biases, delta, n_neurons, sizeof(double));
+    memcpy(out_gradient_biases, delta, n_neurons * sizeof(double));
 }
 
 void update_parameters(
@@ -182,63 +183,75 @@ void update_parameters(
     return;
 }
 
-void get_empty_deltas(NeuronalNetwork nn, double **out_deltas)
+void get_empty_deltas(NeuronalNetwork nn, double ***out_deltas)
 {
-    out_deltas = (double **)malloc(nn.n_layers * sizeof(double *));
+    *out_deltas = (double **)malloc(nn.n_layers * sizeof(double *));
+
+    if (!(*out_deltas))
+    {
+        fprintf(
+            stderr, "back-propagation.c: Error allocating memory for deltas\n"
+        );
+        exit(1);
+    }
 
     for (size_t i = 0; i < nn.n_layers; i++)
     {
-        double *delta =
+        (*out_deltas)[i] =
             (double *)calloc(nn.layers[i].n_neurons, sizeof(double));
-        if (!delta)
+
+        if (!(*out_deltas)[i])
         {
-            fprintf(stderr, "back-propagation.c: Error allocating memory");
+            fprintf(
+                stderr,
+                "back-propagation.c: Error allocating memory for delta layer "
+                "%zu\n",
+                i
+            );
             exit(1);
         }
-
-        out_deltas[i] = delta;
     }
 }
 
 void get_empty_gradients(
     NeuronalNetwork nn,
-    double **out_gradient_weights,
-    double **out_gradient_biases
+    double ***out_gradient_weights,
+    double ***out_gradient_biases
 )
 {
+    *out_gradient_biases = (double **)malloc(nn.n_layers * sizeof(double *));
+    *out_gradient_weights = (double **)malloc(nn.n_layers * sizeof(double *));
+
+    if (!(*out_gradient_biases) || !(*out_gradient_weights))
+    {
+        fprintf(
+            stderr,
+            "back-propagation.c: Error allocating memory for gradients\n"
+        );
+        exit(1);
+    }
+
     for (size_t l = 0; l < nn.n_layers; l++)
     {
         Layer *actual_layer = &nn.layers[l];
-
         size_t size_grad_weights =
             actual_layer->n_neurons * actual_layer->n_inputs;
 
-        double *grad_biases =
+        (*out_gradient_biases)[l] =
             (double *)malloc(actual_layer->n_neurons * sizeof(double));
-
-        if (!grad_biases)
-        {
-            fprintf(
-                stderr, "back-propagation.c: Error allocating memory for "
-                        "the gradient of biases\n"
-            );
-            exit(1);
-        }
-
-        double *grad_weights =
+        (*out_gradient_weights)[l] =
             (double *)malloc(size_grad_weights * sizeof(double));
 
-        if (!grad_weights)
+        if (!(*out_gradient_biases)[l] || !(*out_gradient_weights)[l])
         {
             fprintf(
-                stderr, "back-propagation.c: Error allocating memory for "
-                        "the gradient of weights\n"
+                stderr,
+                "back-propagation.c: Error allocating memory for layer %zu "
+                "gradients\n",
+                l
             );
             exit(1);
         }
-
-        out_gradient_biases[l] = grad_biases;
-        out_gradient_weights[l] = grad_weights;
     }
 }
 
@@ -257,17 +270,7 @@ void backpropagation(
         exit(1);
     }
 
-    double *output = (double *)malloc(
-        nn->layers[nn->n_layers - 1].n_neurons * sizeof(double)
-    );
-
-    if (!output)
-    {
-        fprintf(stderr, "back-propagation.c: Error allocating memory\n");
-        exit(1);
-    }
-
-    compute_nn(nn, input, output, sigmoid);
+    compute_nn(nn, input, NULL, sigmoid);
 
     Layer *last_layer = &nn->layers[nn->n_layers - 1];
     delta_output(
@@ -275,7 +278,7 @@ void backpropagation(
         last_layer->n_neurons
     );
 
-    for (size_t l = nn->n_layers - 2; l != 0; l--)
+    for (int l = (int)nn->n_layers - 2; l >= 0; l--)
     {
         Layer *actual_layer = &nn->layers[l];
         Layer *next_layer = &nn->layers[l + 1];
@@ -309,12 +312,5 @@ void backpropagation(
             deltas[l], actual_layer->n_neurons, grad_biases[l],
             actual_layer->n_neurons
         );
-
-        update_parameters(
-            actual_layer, grad_weights[l], grad_biases[l], LEARNING_RATE
-        );
-
-        free(grad_weights);
-        free(grad_biases);
     }
 }
