@@ -13,7 +13,7 @@ void average_gradients(
     NeuronalNetwork *nn,
     double **grad_weights,
     double **grad_biases,
-    double batch_size
+    double batch_size  // if batch_size != 0 do the average
 );
 
 void reset_gradients(

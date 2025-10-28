@@ -38,33 +38,5 @@ void test_xor_nn_train(int number_of_epochs)
     print_evaluation(metrics, dataset.num_samples, "XOR", number_of_epochs);
     print_xor_nn_predictions(&nn);
 
-    // for (int i = 0; i <= number_of_epochs; i++)
-    // {
-    //     if (i % number_epoch_progress == 0)
-    //     {
-    //         EvaluationMetrics metrics = evaluate_network(&nn, &dataset);
-    //         print_evaluation(metrics, dataset.num_samples, "XOR", i);
-    //         print_xor_nn_predictions(&nn);
-    //         // test nn
-    //     }
-    //
-    //     for (int i = 0; i < dataset.num_samples; i++)
-    //     {
-    //         backpropagation(
-    //             &nn, training_data[i], expected[i], deltas, grad_weights,
-    //             grad_biases
-    //         );
-    //
-    //         for (size_t l = 0; l < nn.n_layers; l++)
-    //         {
-    //             update_parameters(
-    //                 &nn.layers[l], grad_weights[l], grad_biases[l],
-    //                 LEARNING_RATE
-    //             );
-    //         }
-    //     }
-    // }
-    //
-
     free_nn(&nn);
 }
