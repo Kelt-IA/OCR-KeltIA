@@ -1,6 +1,6 @@
 #include "../../include/nn/include_nn.h"
 
-void test_xor_nn_train(int number_of_epochs)
+void test_xor_nn_train(int number_of_epochs, int number_epoch_progress)
 {
     double training_data[4][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
 
@@ -16,8 +16,8 @@ void test_xor_nn_train(int number_of_epochs)
     double **grad_weights = NULL;
     double **grad_biases = NULL;
 
-    get_empty_deltas(nn, &deltas);
-    get_empty_gradients(nn, &grad_weights, &grad_biases);
+    get_empty_deltas(&nn, &deltas);
+    get_empty_gradients(&nn, &grad_weights, &grad_biases);
 
     double *expected_new[4];
     double *inputs_new[4];
@@ -37,7 +37,7 @@ void test_xor_nn_train(int number_of_epochs)
 
     for (int i = 0; i <= number_of_epochs; i++)
     {
-        if (i % 100 == 0)
+        if (i % number_epoch_progress == 0)
         {
             EvaluationMetrics metrics = evaluate_network(&nn, &dataset);
             print_evaluation(metrics, dataset.num_samples, "XOR", i);
