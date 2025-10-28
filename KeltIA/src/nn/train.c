@@ -65,31 +65,48 @@ void train_nn(
     get_empty_deltas(nn, &deltas);
     get_empty_gradients(nn, &grad_weights, &grad_biases);
 
-    for (int i = 0; i <= (int)epochs; i++)
+    size_t backprop_count = 0;
+
+    for (size_t epoch = 0; epoch < epochs; epoch++)
     {
-        for (int j = 0; j < dataset->num_samples; j++)
+        for (size_t j = 0; j < (size_t)dataset->num_samples; j++)
         {
             backpropagation(
                 nn, dataset->inputs[j], dataset->targets[j], deltas,
                 grad_weights, grad_biases
             );
-        }
 
-        if (batch == 0 || i % (int)batch == 0)
-        {
-            // average gradiants
-            average_gradients(nn, grad_weights, grad_biases, batch);
+            backprop_count++;
 
-            for (size_t l = 0; l < nn->n_layers; l++)
+            if (batch == 0 || backprop_count % (size_t)batch == 0)
             {
-                update_parameters(
-                    &nn->layers[l], grad_weights[l], grad_biases[l],
-                    LEARNING_RATE
-                );
-            }
+                average_gradients(nn, grad_weights, grad_biases, batch);
 
-            // set gradiants to 0
-            reset_gradients(nn, grad_weights, grad_biases);
+                for (size_t l = 0; l < nn->n_layers; l++)
+                {
+                    update_parameters(
+                        &nn->layers[l], grad_weights[l], grad_biases[l],
+                        LEARNING_RATE
+                    );
+                }
+
+                // PASO 3: Reset gradientes a 0 para el siguiente batch
+                reset_gradients(nn, grad_weights, grad_biases);
+            }
+        }
+    }
+
+    // If there are any gradients left for training
+    if (batch != 0 && backprop_count % (size_t)batch != 0)
+    {
+        size_t remaining = backprop_count % (size_t)batch;
+        average_gradients(nn, grad_weights, grad_biases, remaining);
+
+        for (size_t l = 0; l < nn->n_layers; l++)
+        {
+            update_parameters(
+                &nn->layers[l], grad_weights[l], grad_biases[l], LEARNING_RATE
+            );
         }
     }
 
