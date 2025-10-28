@@ -1,5 +1,5 @@
-#include "../include/nn/include_nn.h"
-#include "../include/tests/include_tests.h"
+#include "../../include/nn/include_nn.h"
+#include "../../include/tests/include_tests.h"
 
 int test_xor_nn()
 {

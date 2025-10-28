@@ -1,105 +1,49 @@
-CC = gcc
-CFLAGS = -Iinclude -Wall -Wextra -g -O2 `pkg-config --cflags gtk+-3.0`
-LDFLAGS = -lm `pkg-config --libs gtk+-3.0` -fsanitize=address
+CC := gcc
+CFLAGS := -Iinclude -Wall -Wextra -g -O2 `pkg-config --cflags gtk+-3.0`
+LDFLAGS := -lm `pkg-config --libs gtk+-3.0` -fsanitize=address
 
-SRC_DIR = src
-BUILD_DIR = build
-TEST_DIR = tests
-TEST_BUILD_DIR = build/tests
+SRC_DIR := src
+BUILD_DIR := build
+BINS_DIR := bins
 
-# executable files - todos los sources y objetos
-SRCS = $(shell find $(SRC_DIR) -name '*.c')
-OBJS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
+# Automatically find all executables in bins/
+BINS := $(patsubst $(BINS_DIR)/%.c,%,$(wildcard $(BINS_DIR)/*.c))
 
-# Test source files
-TEST_SRCS = $(shell find $(TEST_DIR) -name '*.c')
-TEST_OBJS = $(patsubst $(TEST_DIR)/%.c,$(TEST_BUILD_DIR)/%.o,$(TEST_SRCS))
+# Find all common code in src/
+SRCS := $(shell find $(SRC_DIR) -name '*.c')
+OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
-# ========== INDIVIDUAL MAINS ==========
-MAIN_OBJ = $(BUILD_DIR)/main.o
-SOLVER_MAIN_OBJ = $(BUILD_DIR)/solver/main.o
-TEST_MAIN_OBJ = $(TEST_BUILD_DIR)/main.o
+all: $(BINS)
 
-# ========== COMMON BASE (no main files) ==========
-SRC_OBJS_NO_MAINS = $(filter-out $(MAIN_OBJ) $(SOLVER_MAIN_OBJ), $(OBJS))
+# Pattern rule: each exe = main from bins/ + every .o from src/
+%: $(BINS_DIR)/%.c $(OBJS) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< $(OBJS) -o $@ $(LDFLAGS)
 
-# Main executable: common base + main.o
-OBJS_FOR_MAIN = $(SRC_OBJS_NO_MAINS) $(MAIN_OBJ)
+# Pattern rule: compile any .c from src/ to .o
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-# Solver executable: common base + main.o (from src/solver/)
-OBJS_FOR_SOLVER = $(SRC_OBJS_NO_MAINS) $(SOLVER_MAIN_OBJ)
-
-# Test executable: common base + main.o (from tests/)
-OBJS_FOR_TESTS = $(SRC_OBJS_NO_MAINS) $(TEST_OBJS)
-
-TARGET = ketlia
-TEST_TARGET = test_executable
-SOLVER_TARGET = solver
-
-all: $(BUILD_DIR) $(TARGET)
-
-# Creation of build directory
+# Create build directory
 $(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
+	@mkdir -p $(BUILD_DIR)
 
-# Compilation of objets, creation of necesary folders for building
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+# Execution targets
+test: tests
+	./tests
 
-# Final executable (base + main.o)
-$(TARGET): $(OBJS_FOR_MAIN)
-	$(CC) $^ -o $@ $(LDFLAGS)
+test-solver: solver
+	./solver ./ressources/grid horizontal
+	./solver ./ressources/grid vertical
+	./solver ./ressources/grid diagonal
+	./solver ./ressources/grid find
+	./solver ./ressources/grid hello
+	./solver ./ressources/grid world
+	./solver ./ressources/grid goldorak
+	./solver ./ressources/grid epita
 
+# Clean
+clean:
+	rm -rf $(BUILD_DIR) $(BINS) ressources/xor.nn
 
-# --- TESTS ---
-
-# Create test build directory
-$(TEST_BUILD_DIR):
-	mkdir -p $(TEST_BUILD_DIR)
-
-# Compile test files
-$(TEST_BUILD_DIR)/%.o: $(TEST_DIR)/%.c
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# Link test executable (base + test objects, NO incluye main.o ni main_solver.o)
-$(TEST_TARGET): $(TEST_BUILD_DIR) $(OBJS_FOR_TESTS)
-	$(CC) $(OBJS_FOR_TESTS) -o $@ $(LDFLAGS)
-
-# Target to compile and run tests
-test: $(TEST_TARGET)
-	./$(TEST_TARGET)
-
-
-# --- SOLVER ---
-
-# Solver executable (base + main_solver.o, NO incluye main.o)
-$(SOLVER_TARGET): $(BUILD_DIR) $(OBJS_FOR_SOLVER)
-	$(CC) $(OBJS_FOR_SOLVER) -o $@ $(LDFLAGS)
-
-# Target to compile and run solver
-test-solver: $(SOLVER_TARGET)
-	./tests/solver/test_solver.sh
-
-
-# --- CLEAN TARGETS ---
-
-# Clean main program build files
-clean-main:
-	rm -rf $(BUILD_DIR)/nn/*.o $(MAIN_OBJ) $(TARGET)
-
-# Clean test build files
-clean-test:
-	rm -rf $(TEST_BUILD_DIR) $(TEST_TARGET)
-	rm -f xor.nn
-
-# Clean solver build files
-clean-solver:
-	rm -rf $(SOLVER_MAIN_OBJ) $(SOLVER_TARGET)
-
-# Clean everything
-clean: clean-main clean-test clean-solver
-	rm -rf $(BUILD_DIR)
-
-.PHONY: all clean clean-main clean-test clean-solver test test-solver
+.PHONY: all test test-solver clean

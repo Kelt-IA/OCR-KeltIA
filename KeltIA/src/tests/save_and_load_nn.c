@@ -1,7 +1,7 @@
-#include "../include/nn/include_nn.h"
+#include "../../include/nn/include_nn.h"
 #include <stdio.h>
 
-const char *TEST_FILE = "tests/xor.nn";
+const char *TEST_FILE = "ressources/xor.nn";
 
 // ANSI color codes
 #define COLOR_GREEN "\033[0;32m"
