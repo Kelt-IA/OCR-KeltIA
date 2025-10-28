@@ -1,7 +1,7 @@
 #include "../../include/window/window.h"
 
-<<<<<<< HEAD
 extern GResource *keltia_get_resource(void);
+
 
 void init_window(int *argc, char ***argv)
 {
@@ -11,10 +11,11 @@ void init_window(int *argc, char ***argv)
 
     g_resources_register(keltia_get_resource());
 
-    g_setenv("GTK_MODULES", "", TRUE);
+    //g_setenv("GTK_MODULES", "", TRUE);
     gtk_init(argc, argv);
 
     builder = gtk_builder_new();
+
     if (!gtk_builder_add_from_resource(
             builder, "/org/keltia/ressources/window_design_keltia.glade", &error
         ))
@@ -54,7 +55,7 @@ void init_window(int *argc, char ***argv)
     {
         g_printerr("Warning: GdkWindow is NULL after realize\n");
     }
-    
+
     gtk_main();
 
     g_object_unref(builder);
