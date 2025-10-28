@@ -61,51 +61,73 @@ def find_rectangles(matrix):
     Returns the location of the two main rectangles.
     We advise to apply partition() before applying find_rectangles().
     """
+
     rows = len(matrix)
     cols = len(matrix[0])
-
-    visited = [[0]*cols for _ in range(rows)] # matrice de booléens
+    visited = [[0] * cols for _ in range(rows)]
     rectangles = []
 
     for i in range(rows):
         for j in range(cols):
-            if matrix[i][j] == 1 and not visited[i][j]:
+            if matrix[i][j] == 1 and visited[i][j] == 0:
                 stack = [(i, j)]
                 min_r = max_r = i
                 min_c = max_c = j
+
                 while len(stack) > 0:
                     x, y = stack.pop()
-                    if visited[x][y]:
+                    if visited[x][y] == 1:
                         continue
                     visited[x][y] = 1
-                    min_r = min(min_r, x)
-                    max_r = max(max_r, x)
-                    min_c = min(min_c, y)
-                    max_c = max(max_c, y)
 
-                    (dx, dy) = (-1,0)
-                    nx, ny = x + dx, y + dy
-                    if 0 <= nx < rows and 0 <= ny < cols and matrix[nx][ny] == 1 and not visited[nx][ny]:
-                        stack.append((nx, ny))
+                    if x < min_r:
+                        min_r = x
+                    if x > max_r:
+                        max_r = x
+                    if y < min_c:
+                        min_c = y
+                    if y > max_c:
+                        max_c = y
 
-                    (dx, dy) = (1,0)
-                    nx, ny = x + dx, y + dy
-                    if 0 <= nx < rows and 0 <= ny < cols and matrix[nx][ny] == 1 and not visited[nx][ny]:
-                        stack.append((nx, ny))
-
-                    (dx, dy) = (0,-1)
-                    nx, ny = x + dx, y + dy
-                    if 0 <= nx < rows and 0 <= ny < cols and matrix[nx][ny] == 1 and not visited[nx][ny]:
-                        stack.append((nx, ny))
-
-                    (dx, dy) = (0,1)
-                    nx, ny = x + dx, y + dy
-                    if 0 <= nx < rows and 0 <= ny < cols and matrix[nx][ny] == 1 and not visited[nx][ny]:
-                        stack.append((nx, ny))
+                    # Neighbours
+                    if x > 0 and matrix[x - 1][y] == 1 and visited[x - 1][y] == 0:
+                        stack.append((x - 1, y))
+                    if x < rows - 1 and matrix[x + 1][y] == 1 and visited[x + 1][y] == 0:
+                        stack.append((x + 1, y))
+                    if y > 0 and matrix[x][y - 1] == 1 and visited[x][y - 1] == 0:
+                        stack.append((x, y - 1))
+                    if y < cols - 1 and matrix[x][y + 1] == 1 and visited[x][y + 1] == 0:
+                        stack.append((x, y + 1))
 
                 rectangles.append(((min_r, min_c), (max_r, max_c)))
 
-    return rectangles
+    # Find the Two Biggest Rectangles
+    largest = None
+    second = None
+    largest_area = 0
+    second_area = 0
+
+    for rect in rectangles:
+        h = rect[1][0] - rect[0][0] + 1
+        w = rect[1][1] - rect[0][1] + 1
+        area = h * w
+
+        if area > largest_area:
+            second = largest
+            second_area = largest_area
+            largest = rect
+            largest_area = area
+        elif area > second_area:
+            second = rect
+            second_area = area
+
+    result = []
+    if largest is not None:
+        result.append(largest)
+    if second is not None:
+        result.append(second)
+
+    return result
 
 def main(matrix, n, seuil):
     """

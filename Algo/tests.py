@@ -97,5 +97,5 @@ def one_function_to_rule_them_all(matrix, n, seuil):
 
 
 if __name__ == "__main__":
-    M = file_to_matrix("example.txt")
+    M = file_to_matrix("Algo/example.txt")
     one_function_to_rule_them_all(M, n=10, seuil=0.01)
