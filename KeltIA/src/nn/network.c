@@ -59,7 +59,12 @@ void compute_nn(
 
     // Copy last output
     Layer *last = &nn->layers[nn->n_layers - 1];
-    for (size_t i = 0; i < last->n_neurons; i++) output[i] = last->output[i];
+
+    if (output)
+    {
+        for (size_t i = 0; i < last->n_neurons; i++)
+            output[i] = last->output[i];
+    }
 
     // ensure sum of all outputs = 1
     // softmax(last);
