@@ -22,7 +22,6 @@ void delta_output(
         exit(1);
     }
 
-    // double *delta = (double *)malloc(last_layer->n_neurons * sizeof(double));
     if (!out_delta)
     {
         fprintf(stderr, "back-propagation.c: Invalid array pointer");
@@ -59,7 +58,6 @@ void delta_hidden_layer(
         exit(1);
     }
 
-    // double *delta = (double *)malloc(layer->n_neurons * sizeof(double));
     if (!out_delta)
     {
         fprintf(stderr, "back-propagation.c: Invalid array pointer");
@@ -75,7 +73,6 @@ void delta_hidden_layer(
         }
 
         double deriv = layer->derivative_fn(layer->z[i], layer->output[i]);
-        // double deriv = layer->output[i] * (1 - layer->output[i]);
 
         out_delta[i] = sum * deriv;
     }
@@ -99,11 +96,6 @@ void gradient_weights(
         );
         exit(1);
     }
-    // out_gradient_size =
-
-    // double *grad_weights = (double *)malloc(
-    //     actual_layer->n_neurons * actual_layer->n_inputs * sizeof(double)
-    // );
 
     if (!out_gradient)
     {
@@ -150,10 +142,6 @@ void gradient_biases(
         exit(1);
     }
 
-    // delta: delta of the `layer`
-    // n_neurons: number of neurons that the `layer` has
-
-    // double *gradient_biases = (double *)malloc(n_neurons * sizeof(double));
     if (!out_gradient_biases)
     {
         fprintf(stderr, "back-propagation.c: Invalid pointer provided");
@@ -164,7 +152,6 @@ void gradient_biases(
     // ∂C/∂b[l] = δ[l]
     // memcpy(out_gradient_biases, delta, n_neurons * sizeof(double));
 
-    // for mini-batches
     for (size_t i = 0; i < n_neurons; i++) out_gradient_biases[i] += delta[i];
 }
 

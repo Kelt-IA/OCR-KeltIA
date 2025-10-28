@@ -67,7 +67,6 @@ void train_nn(
 
     for (int i = 0; i <= (int)epochs; i++)
     {
-
         for (int j = 0; j < dataset->num_samples; j++)
         {
             backpropagation(
@@ -83,7 +82,6 @@ void train_nn(
 
             for (size_t l = 0; l < nn->n_layers; l++)
             {
-
                 update_parameters(
                     &nn->layers[l], grad_weights[l], grad_biases[l],
                     LEARNING_RATE

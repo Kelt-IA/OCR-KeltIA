@@ -2,4 +2,4 @@
 
 #include "network.h"
 
-void xor_nn(NeuronalNetwork *nn);
+void xor_nn_perceptron(NeuronalNetwork *nn);

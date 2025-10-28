@@ -1,7 +1,7 @@
 #include "../../include/nn/include_nn.h"
 #include <stdio.h>
 
-void xor_nn(NeuronalNetwork *nn)
+void xor_nn_perceptron(NeuronalNetwork *nn)
 {
     // XOR 2->2->1
     size_t num_neuron_l[2] = {2, 1};

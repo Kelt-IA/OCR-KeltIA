@@ -64,7 +64,4 @@ void compute_nn(NeuronalNetwork *nn, double *input, double *output)
         for (size_t i = 0; i < last->n_neurons; i++)
             output[i] = last->output[i];
     }
-
-    // ensure sum of all outputs = 1
-    // softmax(last);
 }

@@ -119,10 +119,9 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
             prev_neurons = out_nn->layers[i - 1].n_neurons;
         }
 
+        // read activation
         int type;
         fread(&type, sizeof(int), 1, f);
-
-        // read activation
 
         int err = create_layer(
             &out_nn->layers[i], prev_neurons, neurons, ACTIVATION_LEAKY_RELU

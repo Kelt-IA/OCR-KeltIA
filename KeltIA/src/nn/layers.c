@@ -82,8 +82,6 @@ int create_layer(
     return 0;
 }
 
-// This function is only used for the last layer of the
-// neuronal network in order for the sum of all the outputs = 1
 void softmax(Layer *layer)
 {
     for (size_t j = 0; j < layer->n_neurons; j++)

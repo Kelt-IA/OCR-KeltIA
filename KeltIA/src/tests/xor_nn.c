@@ -4,7 +4,7 @@
 int test_xor_nn()
 {
     NeuronalNetwork nn;
-    xor_nn(&nn);
+    xor_nn_perceptron(&nn);
 
     // Dataset XOR: [x1, x2, expected_output]
     double dataset[4][3] = {{0, 0, 0}, {0, 1, 1}, {1, 0, 1}, {1, 1, 0}};

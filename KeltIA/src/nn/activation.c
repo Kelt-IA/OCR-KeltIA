@@ -7,7 +7,7 @@ double sigmoid_derivative(double z, double a)
 {
     (void)z;  // for unsued warning
 
-    // Usamos 'a' is sigmoid(z)
+    // 'a' is sigmoid(z)
     return a * (1.0 - a);
 }
 
