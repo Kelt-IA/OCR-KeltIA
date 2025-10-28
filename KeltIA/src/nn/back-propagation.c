@@ -189,9 +189,9 @@ void update_parameters(
     return;
 }
 
-void get_empty_deltas(NeuronalNetwork nn, double ***out_deltas)
+void get_empty_deltas(NeuronalNetwork *nn, double ***out_deltas)
 {
-    *out_deltas = (double **)malloc(nn.n_layers * sizeof(double *));
+    *out_deltas = (double **)malloc(nn->n_layers * sizeof(double *));
 
     if (!(*out_deltas))
     {
@@ -201,10 +201,10 @@ void get_empty_deltas(NeuronalNetwork nn, double ***out_deltas)
         exit(1);
     }
 
-    for (size_t i = 0; i < nn.n_layers; i++)
+    for (size_t i = 0; i < nn->n_layers; i++)
     {
         (*out_deltas)[i] =
-            (double *)calloc(nn.layers[i].n_neurons, sizeof(double));
+            (double *)calloc(nn->layers[i].n_neurons, sizeof(double));
 
         if (!(*out_deltas)[i])
         {
@@ -220,13 +220,13 @@ void get_empty_deltas(NeuronalNetwork nn, double ***out_deltas)
 }
 
 void get_empty_gradients(
-    NeuronalNetwork nn,
+    NeuronalNetwork *nn,
     double ***out_gradient_weights,
     double ***out_gradient_biases
 )
 {
-    *out_gradient_biases = (double **)malloc(nn.n_layers * sizeof(double *));
-    *out_gradient_weights = (double **)malloc(nn.n_layers * sizeof(double *));
+    *out_gradient_biases = (double **)malloc(nn->n_layers * sizeof(double *));
+    *out_gradient_weights = (double **)malloc(nn->n_layers * sizeof(double *));
 
     if (!(*out_gradient_biases) || !(*out_gradient_weights))
     {
@@ -237,9 +237,9 @@ void get_empty_gradients(
         exit(1);
     }
 
-    for (size_t l = 0; l < nn.n_layers; l++)
+    for (size_t l = 0; l < nn->n_layers; l++)
     {
-        Layer *actual_layer = &nn.layers[l];
+        Layer *actual_layer = &nn->layers[l];
         size_t size_grad_weights =
             actual_layer->n_neurons * actual_layer->n_inputs;
 

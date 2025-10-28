@@ -49,10 +49,10 @@ void backpropagation(
     double **grad_biases
 );
 
-void get_empty_deltas(NeuronalNetwork nn, double ***out_deltas);
+void get_empty_deltas(NeuronalNetwork *nn, double ***out_deltas);
 
 void get_empty_gradients(
-    NeuronalNetwork nn,
+    NeuronalNetwork *nn,
     double ***out_gradient_weights,
     double ***out_gradient_biases
 );
