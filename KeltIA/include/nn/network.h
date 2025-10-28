@@ -23,6 +23,5 @@ ErrorCode create_nn(
     size_t n_inputs,
     size_t n_layers,
     size_t neurons_per_layer[n_layers],
-    NeuronalNetwork *out_nn,
-    unsigned int SEED
+    NeuronalNetwork *out_nn
 );

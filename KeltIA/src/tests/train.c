@@ -10,7 +10,7 @@ void test_xor_nn_train(int number_of_epochs)
     size_t num_neuron_l[3] = {2, 4, 2};
 
     NeuronalNetwork nn;
-    create_nn(2, 3, num_neuron_l, &nn, WEIGHT_INIT_SEED);
+    create_nn(2, 3, num_neuron_l, &nn);
 
     double **deltas = NULL;
     double **grad_weights = NULL;

@@ -6,7 +6,7 @@ void xor_nn(NeuronalNetwork *nn)
     // XOR 2->2->1
     size_t num_neuron_l[2] = {2, 1};
 
-    create_nn(2, 2, num_neuron_l, nn, WEIGHT_INIT_SEED);
+    create_nn(2, 2, num_neuron_l, nn);
 
     // hand crafted weights and biases
     double first_w[4] = {1, 1, 1, 1};  // 2 neurons, 2 inputs each -> 4 weights

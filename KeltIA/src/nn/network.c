@@ -14,8 +14,7 @@ ErrorCode create_nn(
     size_t n_inputs,
     size_t n_layers,
     size_t neurons_per_layer[n_layers],
-    NeuronalNetwork *out_nn,
-    unsigned int SEED
+    NeuronalNetwork *out_nn
 )
 {
     out_nn->n_inputs = n_inputs;
@@ -25,13 +24,13 @@ ErrorCode create_nn(
     for (size_t i = 0; i < n_layers; i++)
     {
         int inputs = (i == 0) ? n_inputs : neurons_per_layer[i - 1];
-        int err = create_layer(
-            &out_nn->layers[i], inputs, neurons_per_layer[i], SEED
-        );
+        int err =
+            create_layer(&out_nn->layers[i], inputs, neurons_per_layer[i]);
         if (err != 0)
         {
             for (size_t j = 0; j < i; j++) { free_layer(&out_nn->layers[j]); }
             free(out_nn->layers);
+            free(out_nn);
             fprintf(stderr, "network.c: Error creating layer\n");
             return NN_ERR_MEMORY;
         }

@@ -111,9 +111,7 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
         size_t neurons;
         fread(&neurons, sizeof(size_t), 1, f);
 
-        int err = create_layer(
-            &out_nn->layers[i], prev_neurons, neurons, WEIGHT_INIT_SEED
-        );
+        int err = create_layer(&out_nn->layers[i], prev_neurons, neurons);
         if (err != 0)
         {
             fclose(f);
