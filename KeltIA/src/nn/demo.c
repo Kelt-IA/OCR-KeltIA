@@ -8,6 +8,12 @@ void xor_nn(NeuronalNetwork *nn)
 
     create_nn(2, 2, num_neuron_l, nn);
 
+    // force step activation
+    for (size_t i = 0; i < nn->n_layers; i++)
+    {
+        set_activation(&nn->layers[i], ACTIVATION_STEP);
+    }
+
     // hand crafted weights and biases
     double first_w[4] = {1, 1, 1, 1};  // 2 neurons, 2 inputs each -> 4 weights
     double first_b[2] = {-0.5, -1.5};  // 2 neurons, 2 biases

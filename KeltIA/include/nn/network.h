@@ -6,19 +6,14 @@
 
 typedef struct
 {
-    size_t n_inputs;
     size_t n_layers;
     Layer *layers;
 
 } NeuronalNetwork;
 
 void free_nn(NeuronalNetwork *nn);
-void compute_nn(
-    NeuronalNetwork *nn,
-    double *input,
-    double *output,
-    Activation f
-);
+void compute_nn(NeuronalNetwork *nn, double *input, double *output);
+
 ErrorCode create_nn(
     size_t n_inputs,
     size_t n_layers,

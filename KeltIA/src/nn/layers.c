@@ -9,10 +9,35 @@ void free_layer(Layer *layer)
     if (!layer) return;
     if (layer->weights) free(layer->weights);
     if (layer->bias) free(layer->bias);
+    if (layer->z) free(layer->z);
     if (layer->output) free(layer->output);
 }
 
-void foward_layer(Layer *layer, double *input, Activation f)
+void set_activation(Layer *layer, ActivationType type)
+{
+    layer->activation_type = type;
+
+    switch (type)
+    {
+
+    case ACTIVATION_SIGMOID:
+        layer->activation_fn = sigmoid;
+        layer->derivative_fn = sigmoid_derivative;
+        break;
+
+    case ACTIVATION_LEAKY_RELU:
+        layer->activation_fn = leaky_relu;
+        layer->derivative_fn = leaky_relu_derivative;
+        break;
+
+    case ACTIVATION_STEP:
+        layer->activation_fn = step;
+        layer->derivative_fn = NULL;  // not used
+        break;
+    }
+}
+
+void foward_layer(Layer *layer, double *input)
 {
     for (size_t j = 0; j < layer->n_neurons; j++)
     {
@@ -22,26 +47,37 @@ void foward_layer(Layer *layer, double *input, Activation f)
             sum += input[i] * layer->weights[j * layer->n_inputs + i];
         }
 
-        layer->output[j] = f(sum);
+        layer->z[j] = sum;
+        layer->output[j] = layer->activation_fn(sum);
     }
 }
 
-int create_layer(Layer *l, size_t n_inputs, size_t n_neurons)
+int create_layer(
+    Layer *l,
+    size_t n_inputs,
+    size_t n_neurons,
+    ActivationType activation
+)
 {
+    memset(l, 0, sizeof(Layer));
+
     l->n_inputs = n_inputs;
     l->n_neurons = n_neurons;
 
     l->bias = calloc(n_neurons, sizeof(double));
+    l->weights = calloc(n_inputs * n_neurons, sizeof(double));
+    init_weights(l);
+
+    l->z = calloc(n_neurons, sizeof(double));
     l->output = calloc(n_neurons, sizeof(double));
 
-    l->weights = calloc(n_inputs * n_neurons, sizeof(double));
-    init_weights_deterministic(l);
-
-    if (!l->weights || !l->bias || !l->output)
+    if (!l->weights || !l->bias || !l->output || !l->z)
     {
         fprintf(stderr, "layers.c: Error allocating memory \n");
         return 1;
     }
+
+    set_activation(l, activation);
 
     return 0;
 }
@@ -63,7 +99,7 @@ void softmax(Layer *layer)
     }
 }
 
-void init_weights_deterministic(Layer *layer)
+void init_weights(Layer *layer)
 {
     double xavier_limit = sqrt(6.0 / (layer->n_inputs + layer->n_neurons));
 

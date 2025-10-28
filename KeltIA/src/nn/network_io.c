@@ -31,7 +31,7 @@ ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
 
     // write header
     fwrite(MAGIC, MAGIC_SIZE, 1, f);
-    fwrite(&nn->n_inputs, sizeof(size_t), 1, f);
+    // fwrite(&nn->n_inputs, sizeof(size_t), 1, f);
     fwrite(&nn->n_layers, sizeof(size_t), 1, f);
 
     // layers
@@ -40,10 +40,12 @@ ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
     {
         // structure
         // {n_neurons_layer_i}
+        // {activation_type}
         // {biases_layer_i}
         // {weights_layer_i}
 
         fwrite(&nn->layers[i].n_neurons, sizeof(size_t), 1, f);
+        fwrite(&nn->layers[i].activation_type, sizeof(int), 1, f);
 
         count_written = fwrite(
             nn->layers[i].bias, sizeof(double), nn->layers[i].n_neurons, f
@@ -92,7 +94,7 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
         return NN_ERR_FORMAT;
     }
 
-    fread(&out_nn->n_inputs, sizeof(size_t), 1, f);
+    // fread(&out_nn->n_inputs, sizeof(size_t), 1, f);
     fread(&out_nn->n_layers, sizeof(size_t), 1, f);
 
     out_nn->layers = malloc(sizeof(Layer) * out_nn->n_layers);
@@ -103,7 +105,6 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
         return NN_ERR_MEMORY;
     }
 
-    int prev_neurons = out_nn->n_inputs;
     for (size_t i = 0; i < out_nn->n_layers; i++)
     {
         // reading the layers
@@ -111,13 +112,29 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
         size_t neurons;
         fread(&neurons, sizeof(size_t), 1, f);
 
-        int err = create_layer(&out_nn->layers[i], prev_neurons, neurons);
+        int prev_neurons;
+        if (i == 0) { prev_neurons = neurons; }
+        else
+        {
+            prev_neurons = out_nn->layers[i - 1].n_neurons;
+        }
+
+        int type;
+        fread(&type, sizeof(int), 1, f);
+
+        // read activation
+
+        int err = create_layer(
+            &out_nn->layers[i], prev_neurons, neurons, ACTIVATION_LEAKY_RELU
+        );
         if (err != 0)
         {
             fclose(f);
             fprintf(stderr, "network_io.c: Error creating layer\n");
             return NN_ERR_NULL_POINTER;
         }
+
+        set_activation(&out_nn->layers[i], int_to_activation(type));
 
         // load weights
         ErrorCode err_weight = load_biases_from_fs(f, &out_nn->layers[i]);

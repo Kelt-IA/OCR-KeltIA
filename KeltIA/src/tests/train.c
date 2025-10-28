@@ -37,7 +37,7 @@ void test_xor_nn_train(int number_of_epochs)
 
     for (int i = 0; i <= number_of_epochs; i++)
     {
-        if (i % 1000 == 0)
+        if (i % 100 == 0)
         {
             EvaluationMetrics metrics = evaluate_network(&nn, &dataset);
             print_evaluation(metrics, dataset.num_samples, "XOR", i);

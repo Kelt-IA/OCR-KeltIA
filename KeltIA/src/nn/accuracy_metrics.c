@@ -32,7 +32,7 @@ EvaluationMetrics evaluate_network(NeuronalNetwork *nn, Dataset *data)
     for (int i = 0; i < data->num_samples; i++)
     {
         // Forward pass
-        compute_nn(nn, data->inputs[i], output, sigmoid);
+        compute_nn(nn, data->inputs[i], output);
 
         // Calculate per-sample errors
         double sample_squared_error = 0.0;
@@ -128,7 +128,7 @@ void print_xor_nn_predictions(NeuronalNetwork *nn)
 
     for (int i = 0; i < 4; i++)
     {
-        compute_nn(nn, inputs[i], output, sigmoid);
+        compute_nn(nn, inputs[i], output);
 
         printf(
             "  %.0f XOR %.0f -> Output: [%.4f, %.4f]  Expected: [%.0f, %.0f]\n",

@@ -20,7 +20,7 @@ int test_xor_nn()
         input[0] = dataset[i][0];
         input[1] = dataset[i][1];
 
-        compute_nn(&nn, input, output, step);
+        compute_nn(&nn, input, output);
 
         double expected = dataset[i][2];
         int correct = (output[0] == expected);

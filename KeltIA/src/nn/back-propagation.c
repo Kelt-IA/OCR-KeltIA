@@ -270,7 +270,7 @@ void backpropagation(
         exit(1);
     }
 
-    compute_nn(nn, input, NULL, sigmoid);
+    compute_nn(nn, input, NULL);
 
     Layer *last_layer = &nn->layers[nn->n_layers - 1];
     delta_output(

@@ -153,19 +153,7 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
         printf(COLOR_BLUE "\n ========================================\n");
         printf("      Neural Network Comparison\n");
         printf("========================================\n" COLOR_RESET);
-        printf("Inputs: %zu | Layers: %zu\n", a->n_inputs, a->n_layers);
-    }
-
-    if (a->n_inputs != b->n_inputs)
-    {
-        if (verbose)
-        {
-            printf(
-                COLOR_RED "✗ n_inputs: %zu vs %zu\n" COLOR_RESET, a->n_inputs,
-                b->n_inputs
-            );
-        }
-        return 0;
+        printf("Layers: %zu\n", a->n_layers);
     }
 
     if (a->n_layers != b->n_layers)
@@ -200,7 +188,10 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
         {
             printf(COLOR_GREEN "       ✓ NETWORKS IDENTICAL\n" COLOR_RESET);
         }
-        else { printf(COLOR_RED "       ✗ NETWORKS DIFFERENT\n" COLOR_RESET); }
+        else
+        {
+            printf(COLOR_RED "       ✗ NETWORKS DIFFERENT\n" COLOR_RESET);
+        }
         printf(
             COLOR_BLUE
             "========================================\n\n" COLOR_RESET
