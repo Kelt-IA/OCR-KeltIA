@@ -244,9 +244,9 @@ void get_empty_gradients(
             actual_layer->n_neurons * actual_layer->n_inputs;
 
         (*out_gradient_biases)[l] =
-            (double *)malloc(actual_layer->n_neurons * sizeof(double));
+            (double *)calloc(actual_layer->n_neurons, sizeof(double));
         (*out_gradient_weights)[l] =
-            (double *)malloc(size_grad_weights * sizeof(double));
+            (double *)calloc(size_grad_weights, sizeof(double));
 
         if (!(*out_gradient_biases)[l] || !(*out_gradient_weights)[l])
         {

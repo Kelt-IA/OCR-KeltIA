@@ -1,6 +1,6 @@
 #include "../../include/nn/include_nn.h"
 
-void test_xor_nn_train(int number_of_epochs, int number_epoch_progress)
+void test_xor_nn_train(int number_of_epochs)
 {
     double training_data[4][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
 
@@ -11,13 +11,6 @@ void test_xor_nn_train(int number_of_epochs, int number_epoch_progress)
 
     NeuronalNetwork nn;
     create_nn(2, 3, num_neuron_l, &nn);
-
-    double **deltas = NULL;
-    double **grad_weights = NULL;
-    double **grad_biases = NULL;
-
-    get_empty_deltas(&nn, &deltas);
-    get_empty_gradients(&nn, &grad_weights, &grad_biases);
 
     double *expected_new[4];
     double *inputs_new[4];
@@ -35,43 +28,43 @@ void test_xor_nn_train(int number_of_epochs, int number_epoch_progress)
     dataset.output_size = 1;
     dataset.num_samples = 4;
 
-    for (int i = 0; i <= number_of_epochs; i++)
-    {
-        if (i % number_epoch_progress == 0)
-        {
-            EvaluationMetrics metrics = evaluate_network(&nn, &dataset);
-            print_evaluation(metrics, dataset.num_samples, "XOR", i);
-            print_xor_nn_predictions(&nn);
-            // test nn
-        }
+    EvaluationMetrics metrics = evaluate_network(&nn, &dataset);
+    print_evaluation(metrics, dataset.num_samples, "XOR", 0);
+    print_xor_nn_predictions(&nn);
 
-        for (int i = 0; i < dataset.num_samples; i++)
-        {
-            backpropagation(
-                &nn, training_data[i], expected[i], deltas, grad_weights,
-                grad_biases
-            );
+    train_nn(&nn, &dataset, number_of_epochs, 0);
 
-            for (size_t l = 0; l < nn.n_layers; l++)
-            {
-                update_parameters(
-                    &nn.layers[l], grad_weights[l], grad_biases[l],
-                    LEARNING_RATE
-                );
-            }
-        }
-    }
+    metrics = evaluate_network(&nn, &dataset);
+    print_evaluation(metrics, dataset.num_samples, "XOR", number_of_epochs);
+    print_xor_nn_predictions(&nn);
 
-    for (size_t i = 0; i < nn.n_layers; i++)
-    {
-        free(deltas[i]);
-        free(grad_weights[i]);
-        free(grad_biases[i]);
-    }
-
-    free(deltas);
-    free(grad_weights);
-    free(grad_biases);
+    // for (int i = 0; i <= number_of_epochs; i++)
+    // {
+    //     if (i % number_epoch_progress == 0)
+    //     {
+    //         EvaluationMetrics metrics = evaluate_network(&nn, &dataset);
+    //         print_evaluation(metrics, dataset.num_samples, "XOR", i);
+    //         print_xor_nn_predictions(&nn);
+    //         // test nn
+    //     }
+    //
+    //     for (int i = 0; i < dataset.num_samples; i++)
+    //     {
+    //         backpropagation(
+    //             &nn, training_data[i], expected[i], deltas, grad_weights,
+    //             grad_biases
+    //         );
+    //
+    //         for (size_t l = 0; l < nn.n_layers; l++)
+    //         {
+    //             update_parameters(
+    //                 &nn.layers[l], grad_weights[l], grad_biases[l],
+    //                 LEARNING_RATE
+    //             );
+    //         }
+    //     }
+    // }
+    //
 
     free_nn(&nn);
 }

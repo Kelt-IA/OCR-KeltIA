@@ -1,21 +1,12 @@
 #include "../../include/nn/include_nn.h"
 
-struct Dataset
-{
-    double **inputs;
-    double **targets;
-    int num_samples;
-    size_t input_size;
-    size_t output_size;
-};
-
 struct EvaluationMetrics
 {
     double mse;         // Mean Squared Error
     double mae;         // Mean Absolute Error
     double rmse;        // Root Mean Squared Error
-    double accuracy;    // Accuracy (clasificación)
-    int correct_count;  // Número de predicciones correctas
+    double accuracy;    // Accuracy
+    int correct_count;  // Number of correct predictions
 };
 
 EvaluationMetrics evaluate_network(NeuronalNetwork *nn, Dataset *data)
