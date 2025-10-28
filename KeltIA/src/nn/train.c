@@ -90,7 +90,6 @@ void train_nn(
                     );
                 }
 
-                // PASO 3: Reset gradientes a 0 para el siguiente batch
                 reset_gradients(nn, grad_weights, grad_biases);
             }
         }

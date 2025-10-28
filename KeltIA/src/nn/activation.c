@@ -11,7 +11,6 @@ double sigmoid_derivative(double z, double a)
     return a * (1.0 - a);
 }
 
-// Leaky ReLU
 // to reduce the chance of learning rate of 0
 double leaky_relu(double z) { return (z > 0) ? z : 0.01 * z; }
 
@@ -41,6 +40,6 @@ ActivationType int_to_activation(int value)
             "Warning: Invalid activation type %d, defaulting to SIGMOID\n",
             value
         );
-        return ACTIVATION_SIGMOID;  // Fallback seguro
+        return ACTIVATION_SIGMOID;  // Fallback
     }
 }
