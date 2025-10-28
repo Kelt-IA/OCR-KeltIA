@@ -26,7 +26,7 @@ void foward_layer(Layer *layer, double *input, Activation f)
     }
 }
 
-int create_layer(Layer *l, size_t n_inputs, size_t n_neurons, unsigned int SEED)
+int create_layer(Layer *l, size_t n_inputs, size_t n_neurons)
 {
     l->n_inputs = n_inputs;
     l->n_neurons = n_neurons;
@@ -35,7 +35,7 @@ int create_layer(Layer *l, size_t n_inputs, size_t n_neurons, unsigned int SEED)
     l->output = calloc(n_neurons, sizeof(double));
 
     l->weights = calloc(n_inputs * n_neurons, sizeof(double));
-    init_weights_deterministic(l->weights, n_inputs * n_neurons, SEED);
+    init_weights_deterministic(l);
 
     if (!l->weights || !l->bias || !l->output)
     {
@@ -63,19 +63,15 @@ void softmax(Layer *layer)
     }
 }
 
-void init_weights_deterministic(
-    double *weights,
-    size_t count,
-    unsigned int seed
-)
+void init_weights_deterministic(Layer *layer)
 {
-    // a fixed SEED for dev pourposes
-    srand(seed);
+    double xavier_limit = sqrt(6.0 / (layer->n_inputs + layer->n_neurons));
 
-    for (size_t i = 0; i < count; i++)
+    for (size_t i = 0; i < (layer->n_neurons * layer->n_inputs); i++)
     {
-        // Values between -0.5 y 0.5
-        weights[i] = ((double)rand() / RAND_MAX) - 0.5;
+        // Distribución uniforme en [-xavier_limit, +xavier_limit]
+        layer->weights[i] =
+            ((double)rand() / RAND_MAX) * 2.0 * xavier_limit - xavier_limit;
     }
 }
 
