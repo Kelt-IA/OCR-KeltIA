@@ -1,9 +1,8 @@
 #pragma once
 
 #include "save_and_load_nn.h"
-#include "train_xor_example.h"
+#include "train_xnor_example.h"
 #include "utils.h"
-#include "xor_nn.h"
 
 // ANSI color codes
 #define COLOR_GREEN "\033[0;32m"
