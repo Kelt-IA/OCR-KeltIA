@@ -1,4 +1,4 @@
 #pragma once
-#include <wand/MagickWand.h>
+#include <MagickWand/MagickWand.h>
 
 MagickWand *rotate_image(const MagickWand *input_wand, double angle);

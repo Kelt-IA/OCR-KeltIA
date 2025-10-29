@@ -123,21 +123,3 @@ binarize_image(const char *input_path, const char *output_path)
     MagickWandTerminus();
     return MagickTrue;
 }
-
-int main(int argc, char **argv)
-{
-    if (argc != 3)
-    {
-        errx(1, "Usage: %s <input_image> <output_image>\n", argv[0]);
-    }
-
-    const char *input_path = argv[1];
-    const char *output_path = argv[2];
-    MagickBooleanType result;
-
-    MagickBooleanType result = binarize_image(input_path, output_path);
-
-    if (result == MagickFalse) { errx(1, "Binarization failed."); }
-
-    return 0;
-}

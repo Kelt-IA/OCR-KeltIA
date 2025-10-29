@@ -50,13 +50,13 @@ static double auto_radius(double stddev)
 {
     if (stddev < 10) return 0.5;  // very clean image
     if (stddev < 25) return 1.0;  // slight noise
-    if (stddev < 50) return 2.0;  // medium noise
-    if (stddev < 80) return 3.0;  // strong noise
-    return 4.0;                   // very strong noise
+    if (stddev < 50) return 1.5;  // medium noise
+    if (stddev < 80) return 2.0;  // strong noise
+    return 2.5;                   // very strong noise
 }
 
 // Reading and writing
-static MagickWand *read_image(const char *path)
+MagickWand *read_image(const char *path)
 {
     MagickWand *wand = NewMagickWand();
     if (MagickReadImage(wand, path) == MagickFalse)
@@ -68,7 +68,7 @@ static MagickWand *read_image(const char *path)
     return wand;
 }
 
-static int write_image(MagickWand *wand, const char *path)
+int write_image(MagickWand *wand, const char *path)
 {
     if (!wand) return 0;
     if (MagickWriteImage(wand, path) == MagickFalse) return 0;
@@ -76,7 +76,7 @@ static int write_image(MagickWand *wand, const char *path)
 }
 
 // Main function of automatic noise reduction
-static MagickWand *remove_noise(MagickWand *wand)
+MagickWand *remove_noise(MagickWand *wand)
 {
     if (!wand) return NULL;
 
@@ -102,37 +102,4 @@ static MagickWand *remove_noise(MagickWand *wand)
     }
 
     return clean;
-}
-
-int main(int argc, char **argv)
-{
-    if (argc != 3)
-    {
-        fprintf(stderr, "Usage: %s <input_image> <output_image>\n", argv[0]);
-        return 1;
-    }
-
-    const char *input_path = argv[1];
-    const char *output_path = argv[2];
-
-    MagickWandGenesis();
-
-    MagickWand *wand = read_image(input_path);
-    if (!wand)
-    {
-        MagickWandTerminus();
-        return 1;
-    }
-
-    MagickWand *denoised = remove_noise(wand);
-    if (denoised)
-    {
-        if (write_image(denoised, output_path))
-            printf("Denoised image recorded under : %s\n", output_path);
-        DestroyMagickWand(denoised);
-    }
-
-    DestroyMagickWand(wand);
-    MagickWandTerminus();
-    return 0;
 }

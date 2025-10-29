@@ -114,10 +114,7 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
 
         int prev_neurons;
         if (i == 0) { prev_neurons = neurons; }
-        else
-        {
-            prev_neurons = out_nn->layers[i - 1].n_neurons;
-        }
+        else { prev_neurons = out_nn->layers[i - 1].n_neurons; }
 
         // read activation
         int type;
