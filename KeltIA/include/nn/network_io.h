@@ -16,20 +16,22 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn);
 
 /*
 MAGIC
-{n_inputs}
 {n_layers}
 
 {n_neurons_layer_1}
+{activation_type}
 {biases_layer_1}
 {weights_layer_1}
 
 {n_neurons_layer_2}
+{activation_type}
 {biases_layer_2}
 {weights_layer_2}
 
 ...
 
 {n_neurons_layer_n}
+{activation_type}
 {biases_layer_n}
 {weights_layer_n}
 */

@@ -153,19 +153,7 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
         printf(COLOR_BLUE "\n ========================================\n");
         printf("      Neural Network Comparison\n");
         printf("========================================\n" COLOR_RESET);
-        printf("Inputs: %zu | Layers: %zu\n", a->n_inputs, a->n_layers);
-    }
-
-    if (a->n_inputs != b->n_inputs)
-    {
-        if (verbose)
-        {
-            printf(
-                COLOR_RED "✗ n_inputs: %zu vs %zu\n" COLOR_RESET, a->n_inputs,
-                b->n_inputs
-            );
-        }
-        return 0;
+        printf("Layers: %zu\n", a->n_layers);
     }
 
     if (a->n_layers != b->n_layers)
@@ -200,7 +188,10 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
         {
             printf(COLOR_GREEN "       ✓ NETWORKS IDENTICAL\n" COLOR_RESET);
         }
-        else { printf(COLOR_RED "       ✗ NETWORKS DIFFERENT\n" COLOR_RESET); }
+        else
+        {
+            printf(COLOR_RED "       ✗ NETWORKS DIFFERENT\n" COLOR_RESET);
+        }
         printf(
             COLOR_BLUE
             "========================================\n\n" COLOR_RESET
@@ -210,50 +201,17 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
     return all_match;
 }
 
-/* Utilities functions */
-// int compare_layers(const Layer *a, const Layer *b)
-// {
-//     if (a->n_inputs != b->n_inputs) return 0;
-//     if (a->n_neurons != b->n_neurons) return 0;
-//
-//     for (size_t i = 0; i < a->n_neurons * a->n_inputs; i++)
-//     {
-//         if (a->weights[i] != b->weights[i]) return 0;
-//     }
-//
-//     for (size_t i = 0; i < a->n_neurons; i++)
-//     {
-//         if (a->bias[i] != b->bias[i]) return 0;
-//         if (a->output[i] != b->output[i]) return 0;
-//     }
-//
-//     return 1;
-// }
-//
-// int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b)
-// {
-//     if (a->n_inputs != b->n_inputs) return 0;
-//     if (a->n_layers != b->n_layers) return 0;
-//
-//     for (size_t i = 0; i < a->n_layers; i++)
-//     {
-//         if (!compare_layers(&a->layers[i], &b->layers[i])) return 0;
-//     }
-//     return 1;
-// }
-
 int test_write_nn()
 {
     NeuronalNetwork nn;
-    xor_nn(&nn);
+    xor_nn_perceptron(&nn);
 
     ErrorCode err = save_nn(TEST_FILE, &nn);
 
     free_nn(&nn);
     if (err != 0)
     {
-        printf("%s\n", nn_error_to_string(err));
-        // fprintf(stderr, "%s\n", nn_error_to_string(err));
+        fprintf(stderr, "%s\n", nn_error_to_string(err));
         return 0;
     }
     return 1;
@@ -270,7 +228,6 @@ int test_load_nn()
     if (err != 0)
     {
         printf("%s\n", nn_error_to_string(err));
-        // fprintf(stderr, "%s\n", nn_error_to_string(err));
         return 0;
     }
     return 1;
@@ -279,7 +236,7 @@ int test_load_nn()
 int test_write_and_load(int verbose)
 {
     NeuronalNetwork a;
-    xor_nn(&a);
+    xor_nn_perceptron(&a);
     save_nn(TEST_FILE, &a);
 
     NeuronalNetwork b;

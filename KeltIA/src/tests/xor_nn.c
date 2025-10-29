@@ -4,7 +4,7 @@
 int test_xor_nn()
 {
     NeuronalNetwork nn;
-    xor_nn(&nn);
+    xor_nn_perceptron(&nn);
 
     // Dataset XOR: [x1, x2, expected_output]
     double dataset[4][3] = {{0, 0, 0}, {0, 1, 1}, {1, 0, 1}, {1, 1, 0}};
@@ -20,7 +20,7 @@ int test_xor_nn()
         input[0] = dataset[i][0];
         input[1] = dataset[i][1];
 
-        compute_nn(&nn, input, output, step);
+        compute_nn(&nn, input, output);
 
         double expected = dataset[i][2];
         int correct = (output[0] == expected);

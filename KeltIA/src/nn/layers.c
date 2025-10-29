@@ -1,4 +1,5 @@
 #include "../../include/nn/include_nn.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,55 +9,103 @@ void free_layer(Layer *layer)
     if (!layer) return;
     if (layer->weights) free(layer->weights);
     if (layer->bias) free(layer->bias);
+    if (layer->z) free(layer->z);
     if (layer->output) free(layer->output);
 }
 
-void foward_layer(Layer *layer, double *input, Activation f)
+void set_activation(Layer *layer, ActivationType type)
 {
-    for (int j = 0; j < layer->n_neurons; j++)
+    layer->activation_type = type;
+
+    switch (type)
     {
-        double sum = layer->bias[j];
-        for (int i = 0; i < layer->n_inputs; i++)
-        {
-            sum += input[i] * layer->weights[j * layer->n_inputs + i];
-        }
-        layer->output[j] = f(sum);
+
+    case ACTIVATION_SIGMOID:
+        layer->activation_fn = sigmoid;
+        layer->derivative_fn = sigmoid_derivative;
+        break;
+
+    case ACTIVATION_LEAKY_RELU:
+        layer->activation_fn = leaky_relu;
+        layer->derivative_fn = leaky_relu_derivative;
+        break;
+
+    case ACTIVATION_STEP:
+        layer->activation_fn = step;
+        layer->derivative_fn = NULL;  // not used
+        break;
     }
 }
 
-int create_layer(Layer *l, size_t n_inputs, size_t n_neurons, unsigned int SEED)
+void foward_layer(Layer *layer, double *input)
 {
+    for (size_t j = 0; j < layer->n_neurons; j++)
+    {
+        double sum = layer->bias[j];
+        for (size_t i = 0; i < layer->n_inputs; i++)
+        {
+            sum += input[i] * layer->weights[j * layer->n_inputs + i];
+        }
+
+        layer->z[j] = sum;
+        layer->output[j] = layer->activation_fn(sum);
+    }
+}
+
+int create_layer(
+    Layer *l,
+    size_t n_inputs,
+    size_t n_neurons,
+    ActivationType activation
+)
+{
+    memset(l, 0, sizeof(Layer));
+
     l->n_inputs = n_inputs;
     l->n_neurons = n_neurons;
 
     l->bias = calloc(n_neurons, sizeof(double));
+    l->weights = calloc(n_inputs * n_neurons, sizeof(double));
+    init_weights(l);
+
+    l->z = calloc(n_neurons, sizeof(double));
     l->output = calloc(n_neurons, sizeof(double));
 
-    l->weights = calloc(n_inputs * n_neurons, sizeof(double));
-    init_weights_deterministic(l->weights, n_inputs * n_neurons, SEED);
-
-    if (!l->weights || !l->bias || !l->output)
+    if (!l->weights || !l->bias || !l->output || !l->z)
     {
         fprintf(stderr, "layers.c: Error allocating memory \n");
         return 1;
     }
 
+    set_activation(l, activation);
+
     return 0;
 }
 
-void init_weights_deterministic(
-    double *weights,
-    size_t count,
-    unsigned int seed
-)
+void softmax(Layer *layer)
 {
-    // a fixed SEED for dev pourposes
-    srand(seed);
-
-    for (size_t i = 0; i < count; i++)
+    for (size_t j = 0; j < layer->n_neurons; j++)
     {
-        // Values between -0.5 y 0.5
-        weights[i] = ((double)rand() / RAND_MAX) - 0.5;
+        double sum = 0;
+        for (size_t i = 0; i < layer->n_inputs; i++)
+        {
+            sum += exp(layer->output[i]);
+            // sum +=  input[i] * layer->weights[j * layer->n_inputs + i];
+        }
+
+        layer->output[j] = exp(layer->output[j]) / sum;
+    }
+}
+
+void init_weights(Layer *layer)
+{
+    double xavier_limit = sqrt(6.0 / (layer->n_inputs + layer->n_neurons));
+
+    for (size_t i = 0; i < (layer->n_neurons * layer->n_inputs); i++)
+    {
+        // Distribución uniforme en [-xavier_limit, +xavier_limit]
+        layer->weights[i] =
+            ((double)rand() / RAND_MAX) * 2.0 * xavier_limit - xavier_limit;
     }
 }
 

@@ -1,5 +1,4 @@
 #include "../include/tests/include_tests.h"
-#include <stdio.h>
 #include <unistd.h>
 
 int main()
@@ -11,5 +10,7 @@ int main()
 
     print_centered_header("XOR NN for demo");
     print_test_result("test XOR nn", test_xor_nn());
+
+    test_xor_nn_train(1000);
     return 0;
 }

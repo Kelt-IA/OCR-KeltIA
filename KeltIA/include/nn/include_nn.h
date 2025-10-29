@@ -1,6 +1,8 @@
 #pragma once
 
+#include "accuracy_metrics.h"
 #include "activation.h"
+#include "back-propagation.h"
 #include "config.h"
 #include "demo.h"
 #include "errors.h"
