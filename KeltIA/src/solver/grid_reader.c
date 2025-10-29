@@ -83,10 +83,10 @@ char **readFile(const char *filename, int *rows, int *cols)
             line_len--;
         }
 
-        size_t chars_to_copy = (line_len < c) ? line_len : c;
+        size_t chars_to_copy = (line_len < (size_t)c) ? line_len : (size_t)c;
         memcpy(result[current_row], line, chars_to_copy);
 
-        if (chars_to_copy < c)
+        if (chars_to_copy < (size_t)c)
         {
             memset(result[current_row] + chars_to_copy, ' ', c - chars_to_copy);
         }
