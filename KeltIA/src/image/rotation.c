@@ -8,7 +8,7 @@ MagickWand *rotate_image(const MagickWand *input_wand, double angle)
     MagickBooleanType status;
     PixelWand *background = NULL;
 
-    // Cloner l’image d’entrée
+    // Clone the input image
     rotated_wand = CloneMagickWand(input_wand);
     if (rotated_wand == NULL)
     {
@@ -16,11 +16,11 @@ MagickWand *rotate_image(const MagickWand *input_wand, double angle)
         return NULL;
     }
 
-    // Définir la couleur de fond (blanc)
+    // Define the background color (white)
     background = NewPixelWand();
     PixelSetColor(background, "white");
 
-    // Effectuer la rotation (3 arguments seulement)
+    // perform the rotation (only 3 arguments)
     status = MagickRotateImage(rotated_wand, background, angle);
     if (status == MagickFalse)
     {
@@ -30,19 +30,19 @@ MagickWand *rotate_image(const MagickWand *input_wand, double angle)
         return NULL;
     }
 
-    // Nettoyer
+    // cleanup
     if (background) background = DestroyPixelWand(background);
 
     return rotated_wand;
 }
 
-// Fonction principale
 int main(int argc, char **argv)
 {
     if (argc != 4)
     {
-        fprintf(stderr, "Usage: %s <input_image> <output_image> <angle>\n",
-                argv[0]);
+        fprintf(
+            stderr, "Usage: %s <input_image> <output_image> <angle>\n", argv[0]
+        );
         return 1;
     }
 
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     MagickWand *wand = NULL;
     MagickWand *rotated = NULL;
 
-    // Initialisation de MagickWand
+    // Initializing MagickWand environment
     MagickWandGenesis();
 
     wand = NewMagickWand();
@@ -76,18 +76,20 @@ int main(int argc, char **argv)
 
     if (MagickWriteImage(rotated, output_file) == MagickFalse)
     {
-        fprintf(stderr, "Error: unable to write output image %s\n",
-                output_file);
+        fprintf(
+            stderr, "Error: unable to write output image %s\n", output_file
+        );
         if (rotated) rotated = DestroyMagickWand(rotated);
         if (wand) wand = DestroyMagickWand(wand);
         MagickWandTerminus();
         return 1;
     }
 
-    printf("Image rotated by %.2f degrees and saved to %s\n", angle,
-           output_file);
+    printf(
+        "Image rotated by %.2f degrees and saved to %s\n", angle, output_file
+    );
 
-    // Nettoyage
+    // Cleanup
     if (rotated) rotated = DestroyMagickWand(rotated);
     if (wand) wand = DestroyMagickWand(wand);
     MagickWandTerminus();

@@ -73,9 +73,10 @@ static double compute_average_gray(MagickWand *wand)
 //     - Compute the optimal threshold (Otsu-like)
 //     - Apply binary thresholding
 
-MagickBooleanType binarize_image(const char *input_path,
-                                 const char *output_path)
+MagickBooleanType
+binarize_image(const char *input_path, const char *output_path)
 {
+    MagickWandGenesis();
     MagickWand *wand = NULL;
     MagickBooleanType status;
     double avg_gray, threshold_value, quantum_range;
@@ -95,8 +96,10 @@ MagickBooleanType binarize_image(const char *input_path,
     quantum_range = (double)QuantumRange;
     threshold_value = avg_gray * quantum_range;
 
-    printf("→ Automatic threshold: %.3f (%.0f out of %.0f)\n", avg_gray,
-           threshold_value, quantum_range);
+    printf(
+        "→ Automatic threshold: %.3f (%.0f out of %.0f)\n", avg_gray,
+        threshold_value, quantum_range
+    );
 
     // Apply binary threshold
     status = MagickThresholdImage(wand, threshold_value);
@@ -117,6 +120,7 @@ MagickBooleanType binarize_image(const char *input_path,
 
     printf("Binary image saved to: %s\n", output_path);
     wand = DestroyMagickWand(wand);
+    MagickWandTerminus();
     return MagickTrue;
 }
 
@@ -131,11 +135,7 @@ int main(int argc, char **argv)
     const char *output_path = argv[2];
     MagickBooleanType result;
 
-    MagickWandGenesis();
-
-    result = binarize_image(input_path, output_path);
-
-    MagickWandTerminus();
+    MagickBooleanType result = binarize_image(input_path, output_path);
 
     if (result == MagickFalse) { errx(1, "Binarization failed."); }
 
