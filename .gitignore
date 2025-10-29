@@ -56,6 +56,9 @@ dkms.conf
 
 # build
 
+*.nn
 */build
-KeltIA/tests/*.nn
 KeltIA/test_executable
+
+# ignore files without extention
+KeltIA/[!.]*
