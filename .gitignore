@@ -63,4 +63,3 @@ KeltIA/test_executable
 # ignore files without extention
 KeltIA/[!.]*
 .vscode/
-KeltIA/test/

@@ -1,6 +1,10 @@
 CC = gcc
-CFLAGS = -Iinclude -Wall -Wextra -Werror -g -O2 `pkg-config --cflags gtk+-3.0`
-LDFLAGS = -lm `pkg-config --libs gtk+-3.0` -fsanitize=address
+
+MAGICK_CFLAGS := $(shell pkg-config --cflags MagickWand)
+MAGICK_LIBS   := $(shell pkg-config --libs   MagickWand)
+
+CFLAGS = -Iinclude -Wall -Wextra -Werror -g -O2 `pkg-config --cflags gtk+-3.0` $(MAGICK_CFLAGS)
+LDFLAGS = -lm `pkg-config --libs gtk+-3.0` -fsanitize=address $(MAGICK_LIBS)
 
 SRC_DIR := src
 BUILD_DIR := build
