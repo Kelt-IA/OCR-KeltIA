@@ -5,7 +5,7 @@ void test_xnor_nn_train(int number_of_epochs)
     double training_data[4][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
 
     // first neuron = 0, second neuron = 1
-    double expected[4][2] = {{0, 1}, {1, 0}, {1, 0}, {0, 1}};
+    double expected[4][2] = {{0, 1}, {1, 0}, {1, 0}, {0, 1}};  // { 1, 0, 0, 1 }
 
     size_t num_neuron_l[3] = {2, 4, 2};
 
