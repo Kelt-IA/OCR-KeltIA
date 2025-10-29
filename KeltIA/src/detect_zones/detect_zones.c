@@ -286,6 +286,11 @@ void one_function_to_rule_them_all(
     if (rect_count < 2)
     {
         fprintf(stderr, "Not enough rectangles found.\n");
+
+        free(rectangles);
+        free_matrix(smallerMatrix, n);
+        free_matrix(matrix, height);
+
         exit(1);
     }
 
@@ -329,6 +334,11 @@ void one_function_to_rule_them_all(
         "coordinates are ((%d,%d),(%d,%d))\n",
         words.r1, words.c1, words.r2, words.c2
     );
+
+    printf(
+        "\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ STAGE 3 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
+    );
+    detect_zones(matrix, width, height, n, threshold);
 
     free_matrix(smallerMatrix, n);
     free(rectangles);

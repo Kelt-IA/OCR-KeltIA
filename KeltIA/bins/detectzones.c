@@ -15,7 +15,6 @@ int main(int argc, char *argv[])
     int n = atoi(argv[2]);
     double threshold = atof(argv[3]);
 
-    // Use the complete testing function instead
     one_function_to_rule_them_all(matrix, rows, cols, n, threshold);
 
     free_matrix(matrix, rows);
