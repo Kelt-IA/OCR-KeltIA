@@ -23,7 +23,7 @@ OCR-KeltIA provides end-to-end recognition from image preprocessing to neural ne
 .
 ├── AUTHORS                   # Author information
 ├── KeltIA
-│   ├── bins                  # Main executables
+│   ├── demos                 # programs to be compiled
 │   ├── include               # Header files separated by modules
 │   ├── ressources            # Sample input data (images, grids)
 │   ├── src                   # Source files organized into modules
