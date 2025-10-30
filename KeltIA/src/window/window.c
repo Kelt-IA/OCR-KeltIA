@@ -2,7 +2,6 @@
 
 extern GResource *keltia_get_resource(void);
 
-
 void init_window(int *argc, char ***argv)
 {
     GtkBuilder *builder = NULL;
@@ -46,6 +45,7 @@ void init_window(int *argc, char ***argv)
         return;
     }
 
+    // Destroy stop the program when main window is destroyed
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
     gtk_widget_show_all(window);
