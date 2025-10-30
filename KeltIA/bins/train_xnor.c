@@ -1,32 +1,37 @@
 #include "../include/nn/include_nn.h"
 #include <err.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+
+void print_help()
+{
+    printf("Usage: ./train_xnor <epochs> <steps>\n");
+    printf("where:\n");
+    printf(
+        "  <epochs>  - Number of training cycles for the neural network. "
+        "Defines how many times the network will go through the entire "
+        "dataset.\nIt must be grater than 0\n"
+    );
+    printf(
+        "  <steps>   - Number of steps per epoch. Used to track the "
+        "training process and print updates about how the neural network "
+        "is learning.\nIt must be greater than 0\n"
+    );
+}
 
 int main(int argc, char *argv[])
 {
 
     if (argc != 3)
     {
-        printf("Usage: ./train_xnor <epochs> <steps>\n");
-        printf("where:\n");
-        printf(
-            "  <epochs>  - Number of training cycles for the neural network. "
-            "Defines how many times the network will go through the entire "
-            "dataset.\nIt must be grater than 0\n"
-        );
-        printf(
-            "  <steps>   - Number of steps per epoch. Used to track the "
-            "training process and print updates about how the neural network "
-            "is learning.\nIt must be greater than 0\n"
-        );
+        print_help();
         return EXIT_FAILURE;
     }
 
     // total epochs, steps
     int epochs = atoi(argv[1]);
-    int steps = atoi(argv[1]);
+    int steps = atoi(argv[2]);
 
     // epochs = 1000
     // steps = 100
@@ -35,7 +40,8 @@ int main(int argc, char *argv[])
 
     if (epochs <= 0 || steps <= 0)
     {
-        printf("Invalid arguments were provided\n");
+        print_help();
+        return EXIT_FAILURE;
     }
 
     double training_data[4][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
@@ -68,13 +74,18 @@ int main(int argc, char *argv[])
     int cycles = epochs / steps;
     EvaluationMetrics metrics;
 
-    for (size_t i = 0; i <= cycles; i++)
+    for (int i = 0; i <= cycles; i++)
     {
-        metrics = evaluate_network(&nn, &dataset);
-        print_evaluation(metrics, dataset.num_samples, "XNOR", i * steps);
-        print_xnor_nn_predictions(&nn);
+        if (i != cycles)
+        {
+            metrics = evaluate_network(&nn, &dataset);
+            print_evaluation(metrics, dataset.num_samples, "XNOR", i * steps);
+            print_xnor_nn_predictions(&nn);
+        }
 
         train_nn(&nn, &dataset, steps, 0);
+
+        usleep(500 * 1000);
     }
 
     if (remainder != 0) { train_nn(&nn, &dataset, remainder, 0); }
