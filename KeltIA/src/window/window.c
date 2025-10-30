@@ -1,5 +1,7 @@
 #include "../../include/window/window.h"
 
+extern GResource *keltia_get_resource(void);
+
 static void print_widget_tree(GtkWidget *widget, int depth)
 {
     if (!GTK_IS_WIDGET(widget)) return;
@@ -32,12 +34,14 @@ void init_window(int *argc, char ***argv)
     GtkWidget *window = NULL;
     GError *error = NULL;
 
+    g_resources_register(keltia_get_resource());
+
     g_setenv("GTK_MODULES", "", TRUE);
     gtk_init(argc, argv);
 
     builder = gtk_builder_new();
-    if (!gtk_builder_add_from_file(
-            builder, "./KeltIA/ressources/window design keltia.glade", &error
+    if (!gtk_builder_add_from_resource(
+            builder, "/org/keltia/ressources/window_design_keltia.glade", &error
         ))
     {
         g_printerr(

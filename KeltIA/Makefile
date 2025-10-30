@@ -11,33 +11,65 @@ BUILD_DIR := build
 BINS_DIR := demos
 BIN_DIR := bin
 
-# Trouver automatiquement tous les exécutables dans demos/
+# Automatically find all executables in demos/
 BIN_NAMES := $(patsubst $(BINS_DIR)/%.c,%,$(wildcard $(BINS_DIR)/*.c))
 BINS := $(addprefix $(BIN_DIR)/,$(BIN_NAMES))
 
-# Trouver tout le code commun dans src/
-SRCS := $(shell find $(SRC_DIR) -name '*.c')
+# Find all common code in src/ EXCEPT window.c
+SRCS := $(shell find $(SRC_DIR) -name '*.c' ! -path '*/window/window.c')
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
+
+# Window-specific object
+WINDOW_OBJ := $(BUILD_DIR)/window/window.o
+
+# GResource only for window
+GRESOURCE_XML := keltia.gresource.xml
+GRESOURCE_C := $(BUILD_DIR)/resources.c
+GRESOURCE_H := $(BUILD_DIR)/resources.h
+RESOURCE_OBJ := $(BUILD_DIR)/resources.o
 
 all: $(BINS)
 
-# Règle pattern : chaque exe = main de bins/ + tous les .o de src/
+# Generate resources.c
+$(GRESOURCE_C): $(GRESOURCE_XML)
+	@mkdir -p $(BUILD_DIR)
+	glib-compile-resources --generate-source --target=$@ $<
+
+# Generate resources.h
+$(GRESOURCE_H): $(GRESOURCE_XML)
+	@mkdir -p $(BUILD_DIR)
+	glib-compile-resources --generate-header --target=$@ $<
+
+# Compile resources.o
+$(RESOURCE_OBJ): $(GRESOURCE_C) $(GRESOURCE_H)
+	$(CC) $(CFLAGS) -c $(GRESOURCE_C) -o $@
+
+# Compile window.o separately
+$(WINDOW_OBJ): $(SRC_DIR)/window/window.c | $(BUILD_DIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# IMPORTANT: Special rule for window
+$(BIN_DIR)/window: $(BINS_DIR)/window.c $(OBJS) $(WINDOW_OBJ) $(RESOURCE_OBJ) | $(BIN_DIR)
+	$(CC) $(CFLAGS) $< $(OBJS) $(WINDOW_OBJ) $(RESOURCE_OBJ) -o $@ $(LDFLAGS)
+
+# Generic pattern rule
 $(BIN_DIR)/%: $(BINS_DIR)/%.c $(OBJS) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< $(OBJS) -o $@ $(LDFLAGS)
 
-# Règle pattern : compiler tout .c de src/ vers .o
+# Pattern rule: compile any .c from src/ to .o
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Créer les répertoires nécessaires
+# Create necessary folders
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
 
 $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
 
-# Cibles d'exécution
+# Execution targets
 test: $(BIN_DIR)/tests
 	$(BIN_DIR)/tests
 
@@ -51,7 +83,7 @@ test-solver: $(BIN_DIR)/solver
 	$(BIN_DIR)/solver ./ressources/grid goldorak
 	$(BIN_DIR)/solver ./ressources/grid epita
 
-# Nettoyage
+# Cleanup
 clean:
 	rm -rf $(BUILD_DIR) $(BIN_DIR) ressources/xor.nn
 

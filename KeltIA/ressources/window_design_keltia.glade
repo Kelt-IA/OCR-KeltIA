@@ -491,7 +491,7 @@ Author: biolix06, Ethanol48, gaelBZH and TirouwwW
                 <property name="valign">start</property>
                 <property name="hexpand">True</property>
                 <property name="vexpand">True</property>
-                <property name="pixbuf">Keltiadegr.png</property>
+                <property name="pixbuf">resource:///org/keltia/ressources/KeltIA_logo.png</property>
               </object>
               <packing>
                 <property name="resize">True</property>
