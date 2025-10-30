@@ -68,3 +68,6 @@ KeltIA/bin/
 ~*.glade
 *.glade~
 \#*.glade\#
+
+
+*/clangd.yaml
