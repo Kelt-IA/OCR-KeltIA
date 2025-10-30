@@ -58,8 +58,14 @@ dkms.conf
 
 *.nn
 */build
-KeltIA/test_executable
 
-# ignore files without extention
-KeltIA/[!.]*
 .vscode/
+
+# Executables
+KeltIA/apply_rotation
+KeltIA/detectzones
+KeltIA/image_correction
+KeltIA/keltai
+KeltIA/solver
+KeltIA/tests
+KeltIA/train_xnor

@@ -100,29 +100,30 @@ void print_evaluation(
     printf("======================================\n\n");
 }
 
-void print_xor_nn_predictions(NeuronalNetwork *nn)
+void print_xnor_nn_predictions(NeuronalNetwork *nn)
 {
     // XOR dataset with one-hot encoded outputs
     double inputs[4][2] = {{0.0, 0.0}, {0.0, 1.0}, {1.0, 0.0}, {1.0, 1.0}};
 
     double expected[4][2] = {
-        {1.0, 0.0},  // 0 XOR 0 = 0 -> [1, 0]
-        {0.0, 1.0},  // 0 XOR 1 = 1 -> [0, 1]
-        {0.0, 1.0},  // 1 XOR 0 = 1 -> [0, 1]
-        {1.0, 0.0}   // 1 XOR 1 = 0 -> [1, 0]
+        {0.0, 1.0},  // 0 XNOR 0 = 0 -> [0, 1]
+        {1.0, 0.0},  // 0 XNOR 1 = 1 -> [1, 0]
+        {1.0, 0.0},  // 1 XNOR 0 = 1 -> [1, 0]
+        {0.0, 1.0}   // 1 XNOR 1 = 0 -> [0, 1]
     };
 
     int output_size = nn->layers[nn->n_layers - 1].n_neurons;
     double *output = malloc(output_size * sizeof(double));
 
-    printf("\n=== XOR Predictions ===\n");
+    printf("\n=== XNOR Predictions ===\n");
 
     for (int i = 0; i < 4; i++)
     {
         compute_nn(nn, inputs[i], output);
 
         printf(
-            "  %.0f XOR %.0f -> Output: [%.4f, %.4f]  Expected: [%.0f, %.0f]\n",
+            "  %.0f XNOR %.0f -> Output: [%.4f, %.4f]  Expected: [%.0f, "
+            "%.0f]\n",
             inputs[i][0], inputs[i][1], output[0], output[1], expected[i][0],
             expected[i][1]
         );

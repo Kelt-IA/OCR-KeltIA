@@ -20,4 +20,4 @@ void print_evaluation(
     int epoch
 );
 
-void print_xor_nn_predictions(NeuronalNetwork *nn);
+void print_xnor_nn_predictions(NeuronalNetwork *nn);
