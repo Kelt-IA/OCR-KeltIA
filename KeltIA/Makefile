@@ -8,46 +8,51 @@ LDFLAGS = -lm `pkg-config --libs gtk+-3.0` -fsanitize=address $(MAGICK_LIBS)
 
 SRC_DIR := src
 BUILD_DIR := build
-BINS_DIR := bins
+BINS_DIR := demos
+BIN_DIR := bin
 
-# Automatically find all executables in bins/
-BINS := $(patsubst $(BINS_DIR)/%.c,%,$(wildcard $(BINS_DIR)/*.c))
+# Trouver automatiquement tous les exécutables dans demos/
+BIN_NAMES := $(patsubst $(BINS_DIR)/%.c,%,$(wildcard $(BINS_DIR)/*.c))
+BINS := $(addprefix $(BIN_DIR)/,$(BIN_NAMES))
 
-# Find all common code in src/
+# Trouver tout le code commun dans src/
 SRCS := $(shell find $(SRC_DIR) -name '*.c')
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
 all: $(BINS)
 
-# Pattern rule: each exe = main from bins/ + every .o from src/
-%: $(BINS_DIR)/%.c $(OBJS) | $(BUILD_DIR)
+# Règle pattern : chaque exe = main de bins/ + tous les .o de src/
+$(BIN_DIR)/%: $(BINS_DIR)/%.c $(OBJS) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< $(OBJS) -o $@ $(LDFLAGS)
 
-# Pattern rule: compile any .c from src/ to .o
+# Règle pattern : compiler tout .c de src/ vers .o
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Create build directory
+# Créer les répertoires nécessaires
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
 
-# Execution targets
-test: tests
-	./tests
+$(BIN_DIR):
+	@mkdir -p $(BIN_DIR)
 
-test-solver: solver
-	./solver ./ressources/grid horizontal
-	./solver ./ressources/grid vertical
-	./solver ./ressources/grid diagonal
-	./solver ./ressources/grid find
-	./solver ./ressources/grid hello
-	./solver ./ressources/grid world
-	./solver ./ressources/grid goldorak
-	./solver ./ressources/grid epita
+# Cibles d'exécution
+test: $(BIN_DIR)/tests
+	$(BIN_DIR)/tests
 
-# Clean
+test-solver: $(BIN_DIR)/solver
+	$(BIN_DIR)/solver ./ressources/grid horizontal
+	$(BIN_DIR)/solver ./ressources/grid vertical
+	$(BIN_DIR)/solver ./ressources/grid diagonal
+	$(BIN_DIR)/solver ./ressources/grid find
+	$(BIN_DIR)/solver ./ressources/grid hello
+	$(BIN_DIR)/solver ./ressources/grid world
+	$(BIN_DIR)/solver ./ressources/grid goldorak
+	$(BIN_DIR)/solver ./ressources/grid epita
+
+# Nettoyage
 clean:
-	rm -rf $(BUILD_DIR) $(BINS) ressources/xor.nn
+	rm -rf $(BUILD_DIR) $(BIN_DIR) ressources/xor.nn
 
 .PHONY: all test test-solver clean
