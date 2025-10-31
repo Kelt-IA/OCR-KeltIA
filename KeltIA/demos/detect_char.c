@@ -39,48 +39,15 @@ int main(int argc, char *argv[])
     );
 
     DrawingWand *draw = NewDrawingWand();
-    PixelWand *stroke_color = NewPixelWand();
-    PixelWand *fill_color = NewPixelWand();
-
-    PixelSetColor(fill_color, "none");
-
-    PixelSetColor(stroke_color, "blue");
-    DrawSetStrokeColor(draw, stroke_color);
-    DrawSetStrokeWidth(draw, 2);
-
-    PixelSetColor(fill_color, "none");
-    DrawSetFillColor(draw, fill_color);
-
-    for (int i = 0; i < grid_chars; i++)
-    {
-        DrawRectangle(
-            draw, grid_characters[i].x, grid_characters[i].y,
-            grid_characters[i].x + grid_characters[i].w,
-            grid_characters[i].y + grid_characters[i].h
-        );
-    }
+    DrawLetterBoundries(wand, draw, grid_characters, grid_chars, "blue");
+    DrawLetterBoundries(wand, draw, words_characters, words_chars, "green");
 
     free(grid_characters);
-
-    PixelSetColor(stroke_color, "green");
-    DrawSetStrokeColor(draw, stroke_color);
-
-    for (int i = 0; i < words_chars; i++)
-    {
-        DrawRectangle(
-            draw, words_characters[i].x, words_characters[i].y,
-            words_characters[i].x + words_characters[i].w,
-            words_characters[i].y + words_characters[i].h
-        );
-    }
-
     free(words_characters);
 
     MagickDrawImage(wand, draw);
 
     MagickWriteImage(wand, output_path);
-    DestroyPixelWand(stroke_color);
-    DestroyPixelWand(fill_color);
     DestroyDrawingWand(draw);
 
     DestroyMagickWand(wand);

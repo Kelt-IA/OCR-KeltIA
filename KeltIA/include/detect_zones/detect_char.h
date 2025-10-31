@@ -40,3 +40,11 @@ CharBBox *detect_characters(
 );
 
 MagickWand *extract_zone(MagickWand *wand, int x, int y, int width, int height);
+
+void DrawLetterBoundries(
+    MagickWand *wand,
+    DrawingWand *draw,
+    CharBBox *grid_characters,
+    int grid_chars,
+    char *color
+);

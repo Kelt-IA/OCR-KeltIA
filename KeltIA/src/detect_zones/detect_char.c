@@ -156,3 +156,37 @@ MagickWand *extract_zone(MagickWand *wand, int x, int y, int width, int height)
     MagickCropImage(region, width, height, x, y);
     return region;
 }
+
+void DrawLetterBoundries(
+    MagickWand *wand,
+    DrawingWand *draw,
+    CharBBox *grid_characters,
+    int grid_chars,
+    char *color
+)
+{
+    PixelWand *stroke_color = NewPixelWand();
+    PixelWand *fill_color = NewPixelWand();
+
+    PixelSetColor(fill_color, "none");
+
+    PixelSetColor(stroke_color, color);
+    DrawSetStrokeColor(draw, stroke_color);
+    DrawSetStrokeWidth(draw, 2);
+
+    PixelSetColor(fill_color, "none");
+    DrawSetFillColor(draw, fill_color);
+
+    for (int i = 0; i < grid_chars; i++)
+    {
+        DrawRectangle(
+            draw, grid_characters[i].x, grid_characters[i].y,
+            grid_characters[i].x + grid_characters[i].w,
+            grid_characters[i].y + grid_characters[i].h
+        );
+    }
+
+    DestroyPixelWand(stroke_color);
+    DestroyPixelWand(fill_color);
+    MagickDrawImage(wand, draw);
+}
