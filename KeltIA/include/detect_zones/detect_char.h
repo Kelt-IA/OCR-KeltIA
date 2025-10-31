@@ -1,4 +1,5 @@
 #include "../../include/detect_zones/detect_zones.h"
+
 #include <MagickWand/MagickWand.h>
 #include <err.h>
 #include <stdlib.h>
@@ -21,11 +22,14 @@ void flood_fill(
     char *visited,
     int width,
     int height,
+    int x_offset,
+    int y_offset,
     int *x_min,
     int *x_max,
     int *y_min,
     int *y_max
 );
+
 CharBBox *detect_characters(
     MagickWand *wand,
     int x_offset,
@@ -34,4 +38,5 @@ CharBBox *detect_characters(
     int height,
     int *char_count
 );
+
 MagickWand *extract_zone(MagickWand *wand, int x, int y, int width, int height);

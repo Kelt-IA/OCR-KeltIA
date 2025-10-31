@@ -51,26 +51,32 @@ int main(int argc, char *argv[])
     PixelSetColor(fill_color, "none");
     DrawSetFillColor(draw, fill_color);
 
-    DrawRectangle(
-        draw, ez.grid.x_min, ez.grid.y_min, ez.grid.x_max, ez.grid.y_max
-    );
+    for (int i = 0; i < grid_chars; i++)
+    {
+        DrawRectangle(
+            draw, grid_characters[i].x, grid_characters[i].y,
+            grid_characters[i].x + grid_characters[i].w,
+            grid_characters[i].y + grid_characters[i].h
+        );
+    }
+
+    free(grid_characters);
 
     PixelSetColor(stroke_color, "green");
     DrawSetStrokeColor(draw, stroke_color);
-    DrawRectangle(
-        draw, ez.words.x_min, ez.words.y_min, ez.words.x_max, ez.words.y_max
-    );
+
+    for (int i = 0; i < words_chars; i++)
+    {
+        DrawRectangle(
+            draw, words_characters[i].x, words_characters[i].y,
+            words_characters[i].x + words_characters[i].w,
+            words_characters[i].y + words_characters[i].h
+        );
+    }
+
+    free(words_characters);
 
     MagickDrawImage(wand, draw);
-
-    printf(
-        "Grid : x1:%i y1:%i x2:%i y2:%i\n", ez.grid.x_min, ez.grid.y_min,
-        ez.grid.x_max, ez.grid.y_max
-    );
-    printf(
-        "Wordlist: x1:%i y1:%i x2:%i y2:%i\n", ez.words.x_min, ez.words.y_min,
-        ez.words.x_max, ez.words.y_max
-    );
 
     MagickWriteImage(wand, output_path);
     DestroyPixelWand(stroke_color);

@@ -8,14 +8,14 @@ void flood_fill(
     char *visited,
     int width,
     int height,
+    int x_offset,
+    int y_offset,
     int *x_min,
     int *x_max,
     int *y_min,
     int *y_max
 )
 {
-    // This is a simple implementation of a stack
-    // Not memory efficient, could be improved later
     Point *stack = malloc(width * height * sizeof(Point));
     size_t stack_top = 0;
 
@@ -26,20 +26,25 @@ void flood_fill(
     stack[stack_top].y = start_y;
     stack_top++;
 
-    visited[start_y * width + start_x] = 1;
+    int local_x = start_x - x_offset;
+    int local_y = start_y - y_offset;
+    visited[local_y * width + local_x] = 1;
 
     // Process all points in stack
     while (stack_top > 0)
     {
         stack_top--;
-        int x = stack[stack_top].x;
-        int y = stack[stack_top].y;
+        int abs_x = stack[stack_top].x;
+        int abs_y = stack[stack_top].y;
+
+        int local_x = abs_x - x_offset;
+        int local_y = abs_y - y_offset;
 
         // Update bounding box size
-        if (x < *x_min) *x_min = x;
-        if (x > *x_max) *x_max = x;
-        if (y < *y_min) *y_min = y;
-        if (y > *y_max) *y_max = y;
+        if (local_x < *x_min) *x_min = local_x;
+        if (local_x > *x_max) *x_max = local_x;
+        if (local_y < *y_min) *y_min = local_y;
+        if (local_y > *y_max) *y_max = local_y;
 
         // Check connected pixels
         for (int dy = -1; dy <= 1; dy++)
@@ -48,19 +53,23 @@ void flood_fill(
             {
                 if (dx == 0 && dy == 0) continue;
 
-                int nx = x + dx;
-                int ny = y + dy;
+                int new_abs_x = abs_x + dx;
+                int new_abs_y = abs_y + dy;
+                int new_local_x = new_abs_x - x_offset;
+                int new_local_y = new_abs_y - y_offset;
 
-                // Check sides
-                if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-                if (visited[ny * width + nx]) continue;
+                // Check sides (local)
+                if (new_local_x < 0 || new_local_x >= width ||
+                    new_local_y < 0 || new_local_y >= height)
+                    continue;
+                if (visited[new_local_y * width + new_local_x]) continue;
 
-                // Add to stack if black pixel found
-                if (is_pixel_black(wand, nx, ny, pixel_wand))
+                // Add to stack if black pixel found (absolues)
+                if (is_pixel_black(wand, new_abs_x, new_abs_y, pixel_wand))
                 {
-                    visited[ny * width + nx] = 1;
-                    stack[stack_top].x = nx;
-                    stack[stack_top].y = ny;
+                    visited[new_local_y * width + new_local_x] = 1;
+                    stack[stack_top].x = new_abs_x;
+                    stack[stack_top].y = new_abs_y;
                     stack_top++;
                 }
             }
@@ -82,8 +91,6 @@ CharBBox *detect_characters(
 )
 {
     char *visited = calloc(width * height, sizeof(char));
-
-    // CharBBox buffer, not memory efficient, can be improved
     CharBBox *characters = malloc(1024 * sizeof(CharBBox));
     *char_count = 0;
 
@@ -94,30 +101,33 @@ CharBBox *detect_characters(
     {
         for (int x = 0; x < width; x++)
         {
+            int abs_x = x_offset + x;
+            int abs_y = y_offset + y;
+
             if (visited[y * width + x]) continue;
 
-            if (is_pixel_black(wand, x_offset + x, y_offset + y, pixel_wand))
+            if (is_pixel_black(wand, abs_x, abs_y, pixel_wand))
             {
                 int x_min = x, x_max = x, y_min = y, y_max = y;
 
                 // Call flood fill to find connected black pixels
                 visited[y * width + x] = 1;
                 flood_fill(
-                    wand, x, y, visited, width, height, &x_min, &x_max, &y_min,
-                    &y_max
+                    wand, abs_x, abs_y, visited, width, height, x_offset,
+                    y_offset, &x_min, &x_max, &y_min, &y_max
                 );
 
                 int char_width = x_max - x_min + 1;
                 int char_height = y_max - y_min + 1;
 
                 // Just in case there is still noise
-                // This allow only char > 4px each side
-                if (char_width > 4 && char_height > 4 && *char_count < 1024)
+                if (char_width > 2 && char_height > 2 && *char_count < 1024)
                 {
                     characters[*char_count].x = x_min + x_offset;
                     characters[*char_count].y = y_min + y_offset;
                     characters[*char_count].w = char_width;
                     characters[*char_count].h = char_height;
+
                     (*char_count)++;
                 }
             }
