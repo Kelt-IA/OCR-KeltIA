@@ -2,9 +2,15 @@ CC = gcc
 
 MAGICK_CFLAGS := $(shell pkg-config --cflags MagickWand)
 MAGICK_LIBS   := $(shell pkg-config --libs   MagickWand)
+GTK_CFLAGS 		:= $(shell pkg-config --cflags gtk+-3.0)
+GTK_LIBS			:= $(shell pkg-config --libs   gtk+-3.0)
 
-CFLAGS = -Iinclude -Wall -Wextra -Werror -g -O2 `pkg-config --cflags gtk+-3.0` $(MAGICK_CFLAGS)
-LDFLAGS = -lm `pkg-config --libs gtk+-3.0` -fsanitize=address $(MAGICK_LIBS)
+CFLAGS = -Iinclude -Wall -Wextra -Werror -g -O2 $(MAGICK_CFLAGS) $(GTK_CFLAGS)
+LDFLAGS = -lm -fsanitize=address $(MAGICK_LIBS) $(GTK_LIBS)
+
+# GTK create memory leaks unrelated to our code
+# So we need separeted linker arguments for window demo
+WINDOW_LDFLAGS = -lm $(MAGICK_LIBS) $(GTK_LIBS)
 
 SRC_DIR := src
 BUILD_DIR := build
@@ -51,7 +57,7 @@ $(WINDOW_OBJ): $(SRC_DIR)/window/window.c | $(BUILD_DIR)
 
 # IMPORTANT: Special rule for window
 $(BIN_DIR)/window: $(BINS_DIR)/window.c $(OBJS) $(WINDOW_OBJ) $(RESOURCE_OBJ) | $(BIN_DIR)
-	$(CC) $(CFLAGS) $< $(OBJS) $(WINDOW_OBJ) $(RESOURCE_OBJ) -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $< $(OBJS) $(WINDOW_OBJ) $(RESOURCE_OBJ) -o $@ $(WINDOW_LDFLAGS)
 
 # Generic pattern rule
 $(BIN_DIR)/%: $(BINS_DIR)/%.c $(OBJS) | $(BIN_DIR)
