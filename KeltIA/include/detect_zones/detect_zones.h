@@ -32,6 +32,7 @@ char is_pixel_black(
     size_t y,
     PixelWand *pixel_wand
 );
+
 Projections *projection(MagickWand *wand);
 Zone *find_two_main_zones(int *proj, int size, int *count);
 BoundingBox extract_bbox_horizontal(MagickWand *wand, int y_min, int y_max);
@@ -47,3 +48,5 @@ char detect_layout(
     int *count
 );
 ExtractedZones detect_zones(MagickWand *wand);
+
+void DrawZoneBoundries(DrawingWand *draw, BoundingBox *ez, char *color);

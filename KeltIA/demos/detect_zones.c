@@ -25,29 +25,30 @@ int main(int argc, char *argv[])
     ExtractedZones ez = detect_zones(wand);
 
     DrawingWand *draw = NewDrawingWand();
-    PixelWand *stroke_color = NewPixelWand();
-    PixelWand *fill_color = NewPixelWand();
+    // PixelWand *stroke_color = NewPixelWand();
+    // PixelWand *fill_color = NewPixelWand();
 
-    PixelSetColor(fill_color, "white");
+    // PixelSetColor(fill_color, "white");
 
-    PixelSetColor(stroke_color, "red");
-    DrawSetStrokeColor(draw, stroke_color);
-    DrawSetStrokeWidth(draw, 3);
+    // PixelSetColor(stroke_color, "red");
+    // DrawSetStrokeColor(draw, stroke_color);
+    // DrawSetStrokeWidth(draw, 3);
+    //
+    // PixelSetColor(fill_color, "none");
+    // DrawSetFillColor(draw, fill_color);
 
-    PixelSetColor(fill_color, "none");
-    DrawSetFillColor(draw, fill_color);
+    DrawZoneBoundries(draw, &ez.grid, "red");
+    DrawZoneBoundries(draw, &ez.words, "green");
 
-    DrawRectangle(
-        draw, ez.grid.x_min, ez.grid.y_min, ez.grid.x_max, ez.grid.y_max
-    );
+    // DrawRectangle(
+    //     draw, ez.grid.x_min, ez.grid.y_min, ez.grid.x_max, ez.grid.y_max
+    // );
 
-    PixelSetColor(stroke_color, "green");
-    DrawSetStrokeColor(draw, stroke_color);
-    DrawRectangle(
-        draw, ez.words.x_min, ez.words.y_min, ez.words.x_max, ez.words.y_max
-    );
-
-    MagickDrawImage(wand, draw);
+    // PixelSetColor(stroke_color, "green");
+    // DrawSetStrokeColor(draw, stroke_color);
+    // DrawRectangle(
+    //     draw, ez.words.x_min, ez.words.y_min, ez.words.x_max, ez.words.y_max
+    // );
 
     printf(
         "Grid : x1:%i y1:%i x2:%i y2:%i\n", ez.grid.x_min, ez.grid.y_min,
@@ -58,9 +59,9 @@ int main(int argc, char *argv[])
         ez.words.x_max, ez.words.y_max
     );
 
+    MagickDrawImage(wand, draw);
+
     MagickWriteImage(wand, output_path);
-    DestroyPixelWand(stroke_color);
-    DestroyPixelWand(fill_color);
     DestroyDrawingWand(draw);
 
     DestroyMagickWand(wand);

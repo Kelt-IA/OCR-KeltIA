@@ -215,7 +215,10 @@ char detect_layout(
     *count = layout ? count_v : count_h;
 
     if (layout) { free(zones_h); }
-    else { free(zones_v); }
+    else
+    {
+        free(zones_v);
+    }
 
     return layout;
 }
@@ -249,4 +252,24 @@ ExtractedZones detect_zones(MagickWand *wand)
     }
 
     return result;
+}
+
+void DrawZoneBoundries(DrawingWand *draw, BoundingBox *ez, char *color)
+{
+    PixelWand *stroke_color = NewPixelWand();
+    PixelWand *fill_color = NewPixelWand();
+
+    PixelSetColor(fill_color, "white");
+
+    PixelSetColor(stroke_color, color);
+    DrawSetStrokeColor(draw, stroke_color);
+    DrawSetStrokeWidth(draw, 3);
+
+    PixelSetColor(fill_color, "none");
+    DrawSetFillColor(draw, fill_color);
+
+    DrawRectangle(draw, ez->x_min, ez->y_min, ez->x_max, ez->y_max);
+
+    DestroyPixelWand(stroke_color);
+    DestroyPixelWand(fill_color);
 }
