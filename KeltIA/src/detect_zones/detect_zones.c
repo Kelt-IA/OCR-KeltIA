@@ -1,345 +1,252 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "../../include/detect_zones/detect_zones.h"
 
-#include "../../include/detect_zones/include.h"
-
-int **allocate_matrix(int rows, int cols)
+// Check if a pixel is black (< 128 brightness)
+char is_pixel_black(MagickWand *wand, size_t x, size_t y, PixelWand *pixel_wand)
 {
-    int **matrix = malloc(rows * sizeof(int *));
-    for (int i = 0; i < rows; i++)
-    {
-        matrix[i] = calloc(cols, sizeof(int));  // calloc initializes to 0
-    }
-    return matrix;
+    MagickGetImagePixelColor(wand, x, y, pixel_wand);
+    return PixelGetRed(pixel_wand) * 255 < 128;
 }
 
-void free_matrix(int **matrix, int rows)
+// Create horizontal and vertical 1D projections
+Projections *projection(MagickWand *wand)
 {
-    for (int i = 0; i < rows; i++) free(matrix[i]);
-    free(matrix);
-}
+    size_t height = MagickGetImageHeight(wand);
+    size_t width = MagickGetImageWidth(wand);
 
-int **partition(int **image, int rows, int cols, int n, double threshold)
-{
-    int **grid = allocate_matrix(n, n);
+    Projections *projs = malloc(sizeof(Projections));
+    projs->horizontal = calloc(height, sizeof(int));
+    projs->vertical = calloc(width, sizeof(int));
 
-    int block_h = rows / n;
-    int block_w = cols / n;
+    PixelWand *pixel_wand = NewPixelWand();
 
-    for (int i = 0; i < n; i++)
+    for (size_t y = 0; y < height; y++)
     {
-        for (int j = 0; j < n; j++)
+        for (size_t x = 0; x < width; x++)
         {
-            // Calculate block boundaries
-            int start_row = i * block_h + (i < rows % n ? i : rows % n);
-            int end_row = start_row + block_h + (i < rows % n ? 1 : 0);
-            int start_col = j * block_w + (j < cols % n ? j : cols % n);
-            int end_col = start_col + block_w + (j < cols % n ? 1 : 0);
-
-            // Count black pixels
-            int black_pixels = 0, total_pixels = 0;
-            for (int r = start_row; r < end_row && r < rows; r++)
+            if (is_pixel_black(wand, x, y, pixel_wand))
             {
-                for (int c = start_col; c < end_col && c < cols; c++)
-                {
-                    black_pixels += image[r][c];
-                    total_pixels++;
-                }
+                projs->vertical[x]++;
+                projs->horizontal[y]++;
             }
-
-            grid[i][j] =
-                ((double)black_pixels / total_pixels > threshold) ? 1 : 0;
         }
     }
 
-    return grid;
+    DestroyPixelWand(pixel_wand);
+    return projs;
 }
 
-// ============= DFS AND RECTANGLE SEARCH =============
-void dfs(
-    int **matrix,
-    int **visited,
-    int rows,
-    int cols,
-    int x,
-    int y,
-    Rectangle *rect
-)
+// Find two main zones from a projection
+Zone *find_two_main_zones(int *proj, int size, int *count)
 {
-    if (x < 0 || x >= rows || y < 0 || y >= cols || visited[x][y] ||
-        matrix[x][y] != 1)
-        return;
-
-    visited[x][y] = 1;
-
-    // Update rectangle boundaries
-    if (x < rect->r1) rect->r1 = x;
-    if (x > rect->r2) rect->r2 = x;
-    if (y < rect->c1) rect->c1 = y;
-    if (y > rect->c2) rect->c2 = y;
-
-    // Explore neighbors (4 directions)
-    dfs(matrix, visited, rows, cols, x - 1, y, rect);
-    dfs(matrix, visited, rows, cols, x + 1, y, rect);
-    dfs(matrix, visited, rows, cols, x, y - 1, rect);
-    dfs(matrix, visited, rows, cols, x, y + 1, rect);
-}
-
-Rectangle *find_rectangles(int **matrix, int rows, int cols, int *count)
-{
-    int **visited = allocate_matrix(rows, cols);
-    Rectangle *rectangles = malloc(rows * cols * sizeof(Rectangle));
+    Zone *zones = malloc(sizeof(Zone) * 2);
     *count = 0;
 
-    for (int i = 0; i < rows; i++)
+    int threshold = 1;
+    int in_zone = 0;
+    int zone_start = 0;
+    int zone_density = 0;
+
+    for (int i = 0; i < size; i++)
     {
-        for (int j = 0; j < cols; j++)
+        if (proj[i] > threshold)
         {
-            if (matrix[i][j] == 1 && !visited[i][j])
+            if (!in_zone)
             {
-                rectangles[*count] = (Rectangle){i, j, i, j};
-                dfs(matrix, visited, rows, cols, i, j, &rectangles[*count]);
+                zone_start = i;
+                zone_density = 0;
+                in_zone = 1;
+            }
+            zone_density += proj[i];
+        }
+        else
+        {
+            if (in_zone && *count < 2)
+            {
+                zones[*count].start = zone_start;
+                zones[*count].end = i - 1;
+                zones[*count].density = zone_density;
                 (*count)++;
+                in_zone = 0;
             }
         }
     }
 
-    free_matrix(visited, rows);
-    return rectangles;
-}
-
-void detect_zones(int **image, int rows, int cols, int n, double threshold)
-{
-    // Partition image into grid
-    int **grid = partition(image, rows, cols, n, threshold);
-
-    // Find rectangles in grid
-    int rect_count;
-    Rectangle *rectangles = find_rectangles(grid, n, n, &rect_count);
-
-    if (rect_count < 2)
+    // Handle last zone if exists
+    if (in_zone && *count < 2)
     {
-        fprintf(stderr, "Error: Found less than 2 rectangles\n");
-        free_matrix(grid, n);
-        free(rectangles);
-        exit(1);
+        zones[*count].start = zone_start;
+        zones[*count].end = size - 1;
+        zones[*count].density = zone_density;
+        (*count)++;
     }
 
-    // Identify grid and word list by area
-    int area1 = (rectangles[0].r2 - rectangles[0].r1 + 1) *
-                (rectangles[0].c2 - rectangles[0].c1 + 1);
-    int area2 = (rectangles[1].r2 - rectangles[1].r1 + 1) *
-                (rectangles[1].c2 - rectangles[1].c1 + 1);
-
-    Rectangle *grid_rect = (area1 > area2) ? &rectangles[0] : &rectangles[1];
-    Rectangle *words_rect = (area1 > area2) ? &rectangles[1] : &rectangles[0];
-
-    // Convert to original coordinates
-    int scale_h = rows / n;
-    int scale_w = cols / n;
-
-    printf(
-        "Grid: ((%d, %d), (%d, %d))\n", grid_rect->r1 * scale_h,
-        grid_rect->c1 * scale_w, (grid_rect->r2 + 1) * scale_h,
-        (grid_rect->c2 + 1) * scale_w
-    );
-
-    printf(
-        "Words: ((%d, %d), (%d, %d))\n", words_rect->r1 * scale_h,
-        words_rect->c1 * scale_w, (words_rect->r2 + 1) * scale_h,
-        (words_rect->c2 + 1) * scale_w
-    );
-
-    free_matrix(grid, n);
-    free(rectangles);
+    return zones;
 }
 
-int **read_matrix_file(const char *filename, int *rows, int *cols)
+// Extract horizontal bounding box
+BoundingBox extract_bbox_horizontal(MagickWand *wand, int y_min, int y_max)
 {
-    FILE *file = fopen(filename, "r");
-    if (!file)
+    size_t width = MagickGetImageWidth(wand);
+    int x_min = width, x_max = 0;
+
+    PixelWand *pixel_wand = NewPixelWand();
+
+    for (int y = y_min; y <= y_max; y++)
     {
-        fprintf(stderr, "Error: Cannot open %s\n", filename);
-        exit(1);
-    }
-
-    char line[2048];
-    int **matrix = malloc(1000 * sizeof(int *));
-    *rows = 0;
-    *cols = 0;
-
-    while (fgets(line, sizeof(line), file))
-    {
-        int len = strlen(line);
-        if (len > 0 && line[len - 1] == '\n') line[--len] = '\0';
-        if (len == 0) continue;
-
-        matrix[*rows] = malloc(len * sizeof(int));
-        for (int i = 0; i < len; i++)
+        for (size_t x = 0; x < width; x++)
         {
-            matrix[*rows][i] = (line[i] == '1') ? 1 : 0;
+            if (is_pixel_black(wand, x, y, pixel_wand))
+            {
+                if ((int)x < x_min) x_min = x;
+                if ((int)x > x_max) x_max = x;
+            }
+        }
+    }
+
+    DestroyPixelWand(pixel_wand);
+    return (BoundingBox){x_min, y_min, x_max, y_max};
+}
+
+// Extract vertical bounding box
+BoundingBox extract_bbox_vertical(MagickWand *wand, int x_min, int x_max)
+{
+    size_t height = MagickGetImageHeight(wand);
+    int y_min = height, y_max = 0;
+
+    PixelWand *pixel_wand = NewPixelWand();
+
+    for (int x = x_min; x <= x_max; x++)
+    {
+        for (size_t y = 0; y < height; y++)
+        {
+            if (is_pixel_black(wand, x, y, pixel_wand))
+            {
+                if ((int)y < y_min) y_min = y;
+                if ((int)y > y_max) y_max = y;
+            }
+        }
+    }
+
+    DestroyPixelWand(pixel_wand);
+    return (BoundingBox){x_min, y_min, x_max, y_max};
+}
+
+// Extract zones for vertical layout (grid above/below words)
+ExtractedZones
+extract_zones_vertical(MagickWand *wand, Zone *zones, int zone_count)
+{
+    ExtractedZones result = {{0, 0, 0, 0}, {0, 0, 0, 0}};
+
+    if (zone_count >= 2)
+    {
+        int largest_idx = 0, smallest_idx = 1;
+        if (zones[1].density > zones[0].density)
+        {
+            largest_idx = 1;
+            smallest_idx = 0;
         }
 
-        if (*cols == 0) *cols = len;
-        (*rows)++;
+        result.grid = extract_bbox_horizontal(
+            wand, zones[largest_idx].start, zones[largest_idx].end
+        );
+        result.words = extract_bbox_horizontal(
+            wand, zones[smallest_idx].start, zones[smallest_idx].end
+        );
+    }
+    else if (zone_count == 1)
+    {
+        result.grid =
+            extract_bbox_horizontal(wand, zones[0].start, zones[0].end);
     }
 
-    fclose(file);
-    return matrix;
+    return result;
 }
 
-// ============= MATRIX PRINTING FUNCTIONS =============
-
-/**
- * Prints a matrix in numeric format
- * @param M: Matrix to print
- * @param rows: Number of rows
- * @param cols: Number of columns
- */
-void print_matrix(int **M, int rows, int cols)
+// Extract zones for horizontal layout (grid left/right of words)
+ExtractedZones
+extract_zones_horizontal(MagickWand *wand, Zone *zones, int zone_count)
 {
-    printf("=========== Matrix ===========\n");
-    for (int i = 0; i < rows; i++)
-    {
-        for (int j = 0; j < cols; j++) { printf("%d  ", M[i][j]); }
-        printf("\n");
-    }
-    printf("==============================\n");
-}
+    ExtractedZones result = {{0, 0, 0, 0}, {0, 0, 0, 0}};
 
-#define RESET "\033[0m"
-#define BLACK "\033[40m  \033[0m"         // Black background
-#define WHITE "\033[47m  \033[0m"         // White background
-#define BLUE "\033[44m  \033[0m"          // Blue background
-#define GREEN "\033[42m  \033[0m"         // Green background
-#define RED "\033[41m  \033[0m"           // Red background
-#define ORANGE "\033[48;5;208m  \033[0m"  // Orange background (256 colors)
-
-const char *convert_to_color(int val)
-{
-    switch (val)
+    if (zone_count >= 2)
     {
-    case 0:
-        return BLACK;  // Black block
-    case 1:
-        return WHITE;  // White block
-    case 2:
-        return BLUE;  // Blue block
-    case 3:
-        return GREEN;  // Green block
-    case 4:
-        return RED;  // Red block
-    case 5:
-        return ORANGE;  // Orange block
-    default:
-        return "\033[45m??\033[0m";  // Magenta with '??' for unknown
-    }
-}
-
-/**
- * Prints a matrix using emoji visualization
- * @param M: Matrix to print
- * @param rows: Number of rows
- * @param cols: Number of columns
- */
-void print_matrix_emoji(int **M, int rows, int cols)
-{
-    printf("============ Matrix ============\n");
-    for (int i = 0; i < rows; i++)
-    {
-        for (int j = 0; j < cols; j++)
+        int largest_idx = 0, smallest_idx = 1;
+        if (zones[1].density > zones[0].density)
         {
-            printf("%s ", convert_to_color(M[i][j]));
+            largest_idx = 1;
+            smallest_idx = 0;
         }
-        printf("\n");
+
+        result.grid = extract_bbox_vertical(
+            wand, zones[largest_idx].start, zones[largest_idx].end
+        );
+        result.words = extract_bbox_vertical(
+            wand, zones[smallest_idx].start, zones[smallest_idx].end
+        );
     }
-    printf("================================\n");
+    else if (zone_count == 1)
+    {
+        result.grid = extract_bbox_vertical(wand, zones[0].start, zones[0].end);
+    }
+
+    return result;
 }
 
-/*
- * This function tests three stages:
- *   1. Partition test. Displays the resulting matrix
- *   2. Find Rectangles test. Displays graphically and numerically
- *   3. Main function test, numerically
- */
-void one_function_to_rule_them_all(
-    int **matrix,
-    int width,
-    int height,
-    int n,
-    double threshold
+// Detect layout and return zones
+char detect_layout(
+    MagickWand *wand,
+    Projections **projs,
+    Zone **zones_result,
+    int *count
 )
 {
-    printf("▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ STAGE 1 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n");
+    *projs = projection(wand);
 
-    // Create the small partitioned matrix
-    int **smallerMatrix = partition(matrix, width, height, n, threshold);
-    print_matrix(smallerMatrix, n, n);
+    size_t height = MagickGetImageHeight(wand);
+    size_t width = MagickGetImageWidth(wand);
 
-    printf(
-        "\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ STAGE 2 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
-    );
-    int rect_count;
-    Rectangle *rectangles = find_rectangles(smallerMatrix, n, n, &rect_count);
+    int count_h = 0, count_v = 0;
+    Zone *zones_h = find_two_main_zones((*projs)->horizontal, height, &count_h);
+    Zone *zones_v = find_two_main_zones((*projs)->vertical, width, &count_v);
 
-    if (rect_count < 2)
+    char layout = count_v > count_h;  // 1 = horizontal, 0 = vertical
+
+    *zones_result = layout ? zones_v : zones_h;
+    *count = layout ? count_v : count_h;
+
+    if (layout) { free(zones_h); }
+    else { free(zones_v); }
+
+    return layout;
+}
+
+// Main function
+ExtractedZones detect_zones(MagickWand *wand)
+{
+    Projections *projs = NULL;
+    Zone *zones = NULL;
+    int count = 0;
+
+    char layout = detect_layout(wand, &projs, &zones, &count);
+
+    ExtractedZones result = layout
+                                ? extract_zones_horizontal(wand, zones, count)
+                                : extract_zones_vertical(wand, zones, count);
+
+    if (layout)
     {
-        fprintf(stderr, "Not enough rectangles found.\n");
-
-        free(rectangles);
-        free_matrix(smallerMatrix, n);
-        free_matrix(matrix, height);
-
-        exit(1);
+        size_t width = MagickGetImageWidth(wand);
+        int right_margin = (int)(width * 0.05);  // 5% margin
+        result.words.x_max = width - right_margin;
     }
 
-    Rectangle rectangleA = rectangles[0];
-    Rectangle rectangleB = rectangles[1];
-
-    // Mark corners with colors
-    smallerMatrix[rectangleA.r1][rectangleA.c1] = 2;  // Blue
-    smallerMatrix[rectangleA.r2][rectangleA.c2] = 3;  // Green
-    smallerMatrix[rectangleB.r1][rectangleB.c1] = 4;  // Red
-    smallerMatrix[rectangleB.r2][rectangleB.c2] = 5;  // Orange
-
-    print_matrix_emoji(smallerMatrix, n, n);
-
-    int areaA =
-        (rectangleA.r2 - rectangleA.r1) * (rectangleA.c2 - rectangleA.c1);
-    int areaB =
-        (rectangleB.r2 - rectangleB.r1) * (rectangleB.c2 - rectangleB.c1);
-    Rectangle grid, words;
-    if (areaA > areaB)
+    free(zones);
+    if (projs)
     {
-        grid = rectangleA;
-        words = rectangleB;
-    }
-    else
-    {
-        grid = rectangleB;
-        words = rectangleA;
+        free(projs->horizontal);
+        free(projs->vertical);
+        free(projs);
     }
 
-    // Blue and green
-    printf(
-        "\033[34m██ \033[0m\033[32m██\033[0m [grid] Grid coordinates are "
-        "((%d,%d),(%d,%d))\n",
-        grid.r1, grid.c1, grid.r2, grid.c2
-    );
-
-    // Red and orange
-    printf(
-        "\033[31m██ \033[0m\033[38;5;208m██\033[0m [words] The word list "
-        "coordinates are ((%d,%d),(%d,%d))\n",
-        words.r1, words.c1, words.r2, words.c2
-    );
-
-    printf(
-        "\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ STAGE 3 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
-    );
-    detect_zones(matrix, width, height, n, threshold);
-
-    free_matrix(smallerMatrix, n);
-    free(rectangles);
+    return result;
 }
