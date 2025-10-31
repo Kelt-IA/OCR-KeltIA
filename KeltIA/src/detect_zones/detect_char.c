@@ -134,6 +134,15 @@ CharBBox *detect_characters(
         }
     }
 
+    // Check if first item is grid
+    if (*char_count > 1 && characters[0].h > characters[1].h * 3)
+    {
+        memmove(
+            &characters[0], &characters[1],
+            ((--(*char_count)) * sizeof(CharBBox))
+        );
+    }
+
     free(visited);
     DestroyPixelWand(pixel_wand);
 

@@ -44,9 +44,9 @@ int main(int argc, char *argv[])
 
     PixelSetColor(fill_color, "none");
 
-    PixelSetColor(stroke_color, "red");
+    PixelSetColor(stroke_color, "blue");
     DrawSetStrokeColor(draw, stroke_color);
-    DrawSetStrokeWidth(draw, 3);
+    DrawSetStrokeWidth(draw, 2);
 
     PixelSetColor(fill_color, "none");
     DrawSetFillColor(draw, fill_color);
