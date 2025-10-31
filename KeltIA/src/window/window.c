@@ -2,32 +2,6 @@
 
 extern GResource *keltia_get_resource(void);
 
-static void print_widget_tree(GtkWidget *widget, int depth)
-{
-    if (!GTK_IS_WIDGET(widget)) return;
-
-    for (int i = 0; i < depth; i++) g_print("  ");
-
-    g_print(
-        "%s (realized: %d, window: %p)\n", G_OBJECT_TYPE_NAME(widget),
-        gtk_widget_get_realized(widget), (void *)gtk_widget_get_window(widget)
-    );
-
-    if (GTK_IS_CONTAINER(widget))
-    {
-        GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
-        for (GList *l = children; l; l = l->next)
-            print_widget_tree(GTK_WIDGET(l->data), depth + 1);
-        g_list_free(children);
-    }
-}
-
-static gboolean present_window_idle(gpointer data)
-{
-    gtk_window_present(GTK_WINDOW(data));
-    return G_SOURCE_REMOVE;
-}
-
 void init_window(int *argc, char ***argv)
 {
     GtkBuilder *builder = NULL;
@@ -36,10 +10,11 @@ void init_window(int *argc, char ***argv)
 
     g_resources_register(keltia_get_resource());
 
-    g_setenv("GTK_MODULES", "", TRUE);
+    //g_setenv("GTK_MODULES", "", TRUE);
     gtk_init(argc, argv);
 
     builder = gtk_builder_new();
+
     if (!gtk_builder_add_from_resource(
             builder, "/org/keltia/ressources/window_design_keltia.glade", &error
         ))
@@ -70,6 +45,7 @@ void init_window(int *argc, char ***argv)
         return;
     }
 
+    // Destroy stop the program when main window is destroyed
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
     gtk_widget_show_all(window);
@@ -79,12 +55,6 @@ void init_window(int *argc, char ***argv)
     {
         g_printerr("Warning: GdkWindow is NULL after realize\n");
     }
-
-    g_print("\n=== Widget tree diagnostic ===\n");
-    print_widget_tree(window, 0);
-    g_print("==============================\n\n");
-
-    g_idle_add(present_window_idle, window);
 
     gtk_main();
 

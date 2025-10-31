@@ -58,7 +58,6 @@ dkms.conf
 
 *.nn
 */build
-
 .vscode/
 
 # Executables
@@ -66,8 +65,7 @@ KeltIA/bin/
 
 # glade tmp files
 ~*.glade
-*.glade~
+*.galde~
 \#*.glade\#
-
 
 */clangd.yaml
