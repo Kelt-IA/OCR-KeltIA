@@ -49,8 +49,12 @@ void init_window(int *argc, char ***argv)
     // Destroy stop the program when main window is destroyed
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
+<<<<<<< HEAD
     callback_init(builder, window);
 
+=======
+    callback_init(builder);
+>>>>>>> 5aaa9fb (Rotation CB untested)
 
     gtk_widget_show_all(window);
     gtk_widget_realize(window);
