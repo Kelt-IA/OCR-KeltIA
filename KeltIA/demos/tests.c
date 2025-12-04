@@ -7,7 +7,7 @@ int main()
     print_test_result("write nn", test_write_nn());
     print_test_result("load nn", test_load_nn());
     print_test_result("write nn, load", test_write_and_load(0));
+    print_test_result("write cnn with kernels!!, load", test_cnn_save_load(1));
 
-    test_xnor_nn_train(50000);
     return 0;
 }
