@@ -1,3 +1,4 @@
+// back-propagation.c
 #include "../../include/nn/include_nn.h"
 #include <cblas.h>
 #include <stddef.h>
@@ -48,7 +49,6 @@ void delta_hidden_layer(
     double *out_delta
 )
 {
-
     // 1. temp = (W[l+1])^T * δ[l+1]
     double *temp = (double *)malloc(layer->n_neurons * sizeof(double));
     if (!temp)
@@ -59,8 +59,7 @@ void delta_hidden_layer(
 
     cblas_dgemv(
         CblasRowMajor, CblasTrans, next_layer->n_neurons, layer->n_neurons, 1.0,
-        next_layer->weights, next_layer->n_inputs,  // CORRECT
-        next_delta, 1, 0.0, temp, 1
+        next_layer->weights, next_layer->n_inputs, next_delta, 1, 0.0, temp, 1
     );
 
     // 2. out_delta = temp * f'(z)
@@ -81,8 +80,6 @@ void gradient_weights(
     double *out_gradient
 )
 {
-    // (void)out_gradient_size;
-
     // outer product: grad_w += δ ⊗ a_prev^T
     cblas_dger(
         CblasRowMajor, actual_layer->n_neurons,
@@ -256,7 +253,7 @@ void backpropagation(
         }
     }
 
-    // Backprop through conv layers if they exist
+    // Backprop through conv layers with pooling support
     if (nn->n_conv_layers > 0)
     {
         double *grad_flattened = calloc(nn->flattened_size, sizeof(double));
@@ -272,7 +269,6 @@ void backpropagation(
             );
         }
 
-        // Backprop through conv layers
         double *grad_conv_output = grad_flattened;
 
         for (int i = (int)nn->n_conv_layers - 1; i >= 0; i--)
@@ -283,38 +279,94 @@ void backpropagation(
                 &nn->conv_layers[i], &grad_kernels, &grad_bias
             );
 
+            double *grad_pool_input = NULL;
             double *grad_input = NULL;
-            if (i > 0)
+
+            // Backprop through pooling if exists
+            if (nn->n_pool_layers > 0 && (size_t)i < nn->n_pool_layers)
             {
-                size_t prev_output_size = nn->conv_layers[i - 1].n_filters *
-                                          nn->conv_layers[i - 1].output_height *
-                                          nn->conv_layers[i - 1].output_width;
-                grad_input = calloc(prev_output_size, sizeof(double));
+                // grad_conv_output is gradient w.r.t pool output
+                // We need gradient w.r.t pool input (which is conv output)
+                ConvLayer *conv = &nn->conv_layers[i];
+                size_t pool_input_size =
+                    conv->n_filters * conv->output_height * conv->output_width;
+                grad_pool_input = calloc(pool_input_size, sizeof(double));
+
+                backward_pool_layer(
+                    &nn->pool_layers[i], grad_conv_output, grad_pool_input
+                );
+
+                // Now grad_pool_input is gradient w.r.t conv output
+                // Backprop through conv layer
+                if (i > 0)
+                {
+                    // Need gradient w.r.t previous pool output (or conv output
+                    // if no pool)
+                    if (nn->n_pool_layers > 0 &&
+                        (size_t)(i - 1) < nn->n_pool_layers)
+                    {
+                        // Previous layer has pooling
+                        PoolLayer *prev_pool = &nn->pool_layers[i - 1];
+                        size_t prev_output_size = prev_pool->input_channels *
+                                                  prev_pool->output_height *
+                                                  prev_pool->output_width;
+                        grad_input = calloc(prev_output_size, sizeof(double));
+                    }
+                    else
+                    {
+                        // Previous layer has no pooling
+                        ConvLayer *prev_conv = &nn->conv_layers[i - 1];
+                        size_t prev_output_size = prev_conv->n_filters *
+                                                  prev_conv->output_height *
+                                                  prev_conv->output_width;
+                        grad_input = calloc(prev_output_size, sizeof(double));
+                    }
+                }
+
+                backward_conv_layer(
+                    &nn->conv_layers[i], grad_pool_input, grad_input,
+                    grad_kernels, grad_bias
+                );
+                free(grad_pool_input);
+            }
+            else
+            {
+                // No pooling for this layer
+                if (i > 0)
+                {
+                    ConvLayer *prev_conv = &nn->conv_layers[i - 1];
+                    size_t prev_output_size = prev_conv->n_filters *
+                                              prev_conv->output_height *
+                                              prev_conv->output_width;
+                    grad_input = calloc(prev_output_size, sizeof(double));
+                }
+
+                backward_conv_layer(
+                    &nn->conv_layers[i], grad_conv_output, grad_input,
+                    grad_kernels, grad_bias
+                );
             }
 
-            backward_conv_layer(
-                &nn->conv_layers[i], grad_conv_output, grad_input, grad_kernels,
-                grad_bias
-            );
-
-            // Store gradients in conv layer for later update
-            // (or update immediately depending on your train loop)
+            // Update conv layer parameters
             update_conv_parameters(
-                &nn->conv_layers[i], grad_kernels, grad_bias, 0.01
+                &nn->conv_layers[i], grad_kernels, grad_bias, nn->learning_rate
             );
 
             free(grad_kernels);
             free(grad_bias);
 
+            // Update grad_conv_output for next iteration
             if (i > 0)
             {
-                if (grad_conv_output != grad_flattened) free(grad_conv_output);
+                if (grad_conv_output != grad_flattened)
+                {
+                    free(grad_conv_output);
+                }
                 grad_conv_output = grad_input;
             }
-            else if (grad_input) { free(grad_input); }
         }
 
-        if (grad_conv_output != grad_flattened) free(grad_conv_output);
+        if (grad_conv_output != grad_flattened) { free(grad_conv_output); }
         free(grad_flattened);
     }
 }

@@ -1,135 +1,82 @@
-#include "../../include/nn/include_nn.h"
+#include "../../include/nn/accuracy_metrics.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
-struct EvaluationMetrics
-{
-    double mse;         // Mean Squared Error
-    double mae;         // Mean Absolute Error
-    double rmse;        // Root Mean Squared Error
-    double accuracy;    // Accuracy
-    int correct_count;  // Number of correct predictions
-};
-
-EvaluationMetrics evaluate_network(NeuronalNetwork *nn, Dataset *data)
+EvaluationMetrics evaluate_network(NeuronalNetwork *nn, Dataset *dataset)
 {
     EvaluationMetrics metrics = {0};
-
-    double total_squared_error = 0.0;
-    double total_absolute_error = 0.0;
+    double total_mse = 0.0;
     int correct = 0;
 
-    int output_size = nn->layers[nn->n_layers - 1].n_neurons;
-    double *output = malloc(output_size * sizeof(double));
-
-    for (int i = 0; i < data->num_samples; i++)
+    for (int i = 0; i < dataset->num_samples; i++)
     {
-        // Forward pass
-        compute_nn(nn, data->inputs[i], output);
+        double *output = malloc(dataset->output_size * sizeof(double));
+        compute_nn(nn, dataset->inputs[i], output);
 
-        // Calculate per-sample errors
-        double sample_squared_error = 0.0;
-        double sample_absolute_error = 0.0;
-
-        for (size_t j = 0; j < data->output_size; j++)
+        // Find predicted class (argmax)
+        size_t predicted = 0;
+        double max_output = output[0];
+        for (size_t j = 1; j < dataset->output_size; j++)
         {
-            double error = data->targets[i][j] - output[j];
-            sample_squared_error += error * error;
-            sample_absolute_error += fabs(error);
-        }
-
-        total_squared_error += sample_squared_error;
-        total_absolute_error += sample_absolute_error;
-
-        // Classification accuracy
-        if (data->output_size > 1)  // Multi-class classification
-        {
-            int predicted_class = 0;
-            int target_class = 0;
-            double max_output = output[0];
-            double max_target = data->targets[i][0];
-
-            for (size_t j = 1; j < data->output_size; j++)
+            if (output[j] > max_output)
             {
-                if (output[j] > max_output)
-                {
-                    max_output = output[j];
-                    predicted_class = j;
-                }
-                if (data->targets[i][j] > max_target)
-                {
-                    max_target = data->targets[i][j];
-                    target_class = j;
-                }
+                max_output = output[j];
+                predicted = j;
             }
+        }
 
-            if (predicted_class == target_class) { correct++; }
-        }
-        else  // Binary classification
+        // Find actual class
+        size_t actual = 0;
+        for (size_t j = 0; j < dataset->output_size; j++)
         {
-            int predicted = (output[0] >= 0.5) ? 1 : 0;
-            int target = (data->targets[i][0] >= 0.5) ? 1 : 0;
-            if (predicted == target) { correct++; }
+            if (dataset->targets[i][j] == 1.0)
+            {
+                actual = j;
+                break;
+            }
         }
+
+        if (predicted == actual) { correct++; }
+
+        // Calculate MSE
+        for (size_t j = 0; j < dataset->output_size; j++)
+        {
+            double error = dataset->targets[i][j] - output[j];
+            total_mse += error * error;
+        }
+
+        free(output);
     }
 
-    // Calculate final metrics
-    int total_outputs = data->num_samples * data->output_size;
-    metrics.mse = total_squared_error / total_outputs;
-    metrics.mae = total_absolute_error / total_outputs;
-    metrics.rmse = sqrt(metrics.mse);
-    metrics.accuracy = (double)correct / data->num_samples;
-    metrics.correct_count = correct;
+    metrics.accuracy = (double)correct / dataset->num_samples;
+    metrics.mse = total_mse / (dataset->num_samples * dataset->output_size);
+    metrics.correct_predictions = correct;
 
-    free(output);
     return metrics;
 }
 
-void print_evaluation(
-    EvaluationMetrics metrics,
-    int num_samples,
-    const char *dataset_name,
-    int epoch
-)
+void log_metrics(const char *filepath, size_t epoch, EvaluationMetrics metrics)
 {
-    printf("\n=== Evaluation: %s, epoch: %d ===\n", dataset_name, epoch);
-    printf("Total samples: %d\n", num_samples);
-    printf("Correct predictions: %d/%d\n", metrics.correct_count, num_samples);
-    printf("Accuracy: %.2f%%\n", metrics.accuracy * 100.0);
-    printf("MSE:  %.8f\n", metrics.mse);
-    printf("RMSE: %.8f\n", metrics.rmse);
-    printf("MAE:  %.8f\n", metrics.mae);
-    printf("======================================\n\n");
-}
-
-void print_xnor_nn_predictions(NeuronalNetwork *nn)
-{
-    // XOR dataset with one-hot encoded outputs
-    double inputs[4][2] = {{0.0, 0.0}, {0.0, 1.0}, {1.0, 0.0}, {1.0, 1.0}};
-
-    double expected[4][2] = {
-        {0.0, 1.0},  // 0 XNOR 0 = 0 -> [0, 1]
-        {1.0, 0.0},  // 0 XNOR 1 = 1 -> [1, 0]
-        {1.0, 0.0},  // 1 XNOR 0 = 1 -> [1, 0]
-        {0.0, 1.0}   // 1 XNOR 1 = 0 -> [0, 1]
-    };
-
-    int output_size = nn->layers[nn->n_layers - 1].n_neurons;
-    double *output = malloc(output_size * sizeof(double));
-
-    printf("\n=== XNOR Predictions ===\n");
-
-    for (int i = 0; i < 4; i++)
+    FILE *f = fopen(filepath, "w");
+    if (!f)
     {
-        compute_nn(nn, inputs[i], output);
-
-        printf(
-            "  %.0f XNOR %.0f -> Output: [%.4f, %.4f]  Expected: [%.0f, "
-            "%.0f]\n",
-            inputs[i][0], inputs[i][1], output[0], output[1], expected[i][0],
-            expected[i][1]
-        );
+        fprintf(stderr, "Error opening log file: %s\n", filepath);
+        return;
     }
 
-    printf("=======================\n\n");
+    time_t now = time(NULL);
+    char *timestamp = ctime(&now);
+    timestamp[strcspn(timestamp, "\n")] = 0;  // Remove newline
 
-    free(output);
+    fprintf(f, "Training Log\n");
+    fprintf(f, "=============\n");
+    fprintf(f, "Timestamp: %s\n", timestamp);
+    fprintf(f, "Epoch: %zu\n", epoch);
+    fprintf(f, "Accuracy: %.4f%%\n", metrics.accuracy * 100.0);
+    fprintf(f, "MSE: %.6f\n", metrics.mse);
+    fprintf(f, "Correct predictions: %d\n", metrics.correct_predictions);
+
+    fclose(f);
 }

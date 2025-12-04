@@ -67,9 +67,15 @@ void backward_conv_layer(
     size_t K = conv->input_channels * conv->kernel_height * conv->kernel_width;
     size_t N = conv->output_height * conv->output_width;
 
-    // OPTIMIZATION 1: Compute gradient w.r.t bias using CBLAS
-    // grad_bias[f] = sum of all grad_output[f,:,:]
-    // This is equivalent to: grad_bias = grad_output * ones_vector
+    // ✅ AÑADIR: Apply ReLU derivative to grad_output
+    double *grad_output_activated = malloc(M * N * sizeof(double));
+    memcpy(grad_output_activated, grad_output, M * N * sizeof(double));
+
+    for (size_t i = 0; i < M * N; i++)
+    {
+        // ReLU derivative: 1 if output > 0, else 0
+        if (conv->output[i] <= 0.0) { grad_output_activated[i] = 0.0; }
+    }
 
     double *ones = malloc(N * sizeof(double));
     if (!ones)
@@ -78,52 +84,54 @@ void backward_conv_layer(
             stderr,
             "back-propagation-convolutional.c: Error allocating ones vector\n"
         );
+        free(grad_output_activated);
         return;
     }
 
     for (size_t i = 0; i < N; i++) { ones[i] = 1.0; }
 
-    // grad_bias += grad_output * ones
-    // grad_output: [M x N], ones: [N], result: [M]
+    // grad_bias += grad_output_activated * ones
     cblas_dgemv(
-        CblasRowMajor, CblasNoTrans, M, N, 1.0, grad_output, N, ones, 1, 1.0,
-        grad_bias, 1
+        CblasRowMajor, CblasNoTrans, M, N, 1.0, grad_output_activated, N, ones,
+        1, 1.0, grad_bias, 1
     );
 
     free(ones);
 
     // Compute gradient w.r.t kernels using GEMM
-    // grad_kernels = grad_output * col_buffer^T
     cblas_dgemm(
-        CblasRowMajor, CblasNoTrans, CblasTrans, M, K, N, 1.0, grad_output, N,
-        conv->col_buffer, N, 1.0, grad_kernels, K
+        CblasRowMajor, CblasNoTrans, CblasTrans, M, K, N, 1.0,
+        grad_output_activated, N, conv->col_buffer, N, 1.0, grad_kernels, K
     );
 
-    // Compute gradient w.r.t input using GEMM
-    // grad_col = kernels^T * grad_output
-    double *grad_col = calloc(K * N, sizeof(double));
-    if (!grad_col)
+    if (grad_input != NULL)
     {
-        fprintf(
-            stderr,
-            "back-propagation-convolutional.c: Error allocating grad_col\n"
+        double *grad_col = calloc(K * N, sizeof(double));
+        if (!grad_col)
+        {
+            fprintf(
+                stderr,
+                "back-propagation-convolutional.c: Error allocating grad_col\n"
+            );
+            free(grad_output_activated);
+            return;
+        }
+
+        cblas_dgemm(
+            CblasRowMajor, CblasTrans, CblasNoTrans, K, N, M, 1.0,
+            conv->kernels, K, grad_output_activated, N, 0.0, grad_col, N
         );
-        return;
+
+        col2im(
+            grad_col, conv->input_channels, conv->input_height,
+            conv->input_width, conv->kernel_height, conv->kernel_width,
+            conv->stride, conv->padding, grad_input
+        );
+
+        free(grad_col);
     }
 
-    cblas_dgemm(
-        CblasRowMajor, CblasTrans, CblasNoTrans, K, N, M, 1.0, conv->kernels, K,
-        grad_output, N, 0.0, grad_col, N
-    );
-
-    // Transform grad_col back to image format using col2im
-    col2im(
-        grad_col, conv->input_channels, conv->input_height, conv->input_width,
-        conv->kernel_height, conv->kernel_width, conv->stride, conv->padding,
-        grad_input
-    );
-
-    free(grad_col);
+    free(grad_output_activated);
 }
 
 void update_conv_parameters(

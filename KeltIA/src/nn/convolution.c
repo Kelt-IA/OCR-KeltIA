@@ -83,16 +83,20 @@ void init_conv_weights(ConvLayer *conv)
 {
     size_t fan_in =
         conv->input_channels * conv->kernel_height * conv->kernel_width;
-    size_t fan_out = conv->n_filters * conv->kernel_height * conv->kernel_width;
-    double xavier_limit = sqrt(6.0 / (fan_in + fan_out));
 
-    size_t kernel_size = conv->n_filters * conv->input_channels *
-                         conv->kernel_height * conv->kernel_width;
+    // He initialization for ReLU: std = sqrt(2 / fan_in)
+    double he_std = sqrt(2.0 / fan_in);
+
+    size_t kernel_size = conv->n_filters * fan_in;
 
     for (size_t i = 0; i < kernel_size; i++)
     {
-        conv->kernels[i] =
-            ((double)rand() / RAND_MAX) * 2.0 * xavier_limit - xavier_limit;
+        // Generar número aleatorio con distribución normal aproximada
+        double u1 = ((double)rand() / RAND_MAX);
+        double u2 = ((double)rand() / RAND_MAX);
+        double z = sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
+
+        conv->kernels[i] = z * he_std;
     }
 }
 
@@ -160,7 +164,6 @@ void forward_conv_layer(ConvLayer *conv, const double *input)
         conv->col_buffer
     );
 
-    // Dimensions for GEMM
     size_t M = conv->n_filters;
     size_t K = conv->input_channels * conv->kernel_height * conv->kernel_width;
     size_t N = conv->output_height * conv->output_width;
@@ -171,24 +174,21 @@ void forward_conv_layer(ConvLayer *conv, const double *input)
         K, conv->col_buffer, N, 0.0, conv->output, N
     );
 
-    // OPTIMIZATION: Add bias using CBLAS operations
-    // Create ones vector for broadcasting bias
-    double *ones = malloc(N * sizeof(double));
-    if (!ones)
+    // Add bias using CBLAS
+    for (size_t f = 0; f < conv->n_filters; f++)
     {
-        fprintf(stderr, "convolution.c: Error allocating ones vector\n");
-        return;
+        cblas_daxpy(N, 1.0, &conv->bias[f], 0, &conv->output[f * N], 1);
     }
 
-    for (size_t i = 0; i < N; i++) { ones[i] = 1.0; }
-
-    // Add bias using outer product: output += bias * ones^T
-    // This broadcasts each bias value across all spatial positions
-    cblas_dger(
-        CblasRowMajor, M, N, 1.0, conv->bias, 1, ones, 1, conv->output, N
-    );
-
-    free(ones);
+    // ✅ AÑADIR ACTIVACIÓN ReLU (CRÍTICO!)
+    size_t output_size = M * N;
+    for (size_t i = 0; i < output_size; i++)
+    {
+        if (conv->output[i] < 0.0)
+        {
+            conv->output[i] = 0.0;  // ReLU: max(0, x)
+        }
+    }
 }
 
 void apply_activation_conv(ConvLayer *conv, ActivationFunction activation_fn)

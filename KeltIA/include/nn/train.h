@@ -2,7 +2,7 @@
 
 #include "accuracy_metrics.h"
 #include "network.h"
-#include <csignal>
+#include <signal.h>
 #include <stddef.h>
 
 // Global flag for SIGINT handling
