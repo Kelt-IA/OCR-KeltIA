@@ -57,11 +57,9 @@ void delta_hidden_layer(
         exit(1);
     }
 
-    // Mult transpose of weights of next_layer by next_delta
     cblas_dgemv(
-        CblasRowMajor, CblasTrans,                  // transposed de W[l+1]
-        next_layer->n_neurons, layer->n_neurons,    // M x N
-        1.0, next_layer->weights, layer->n_inputs,  // W[l+1], lda
+        CblasRowMajor, CblasTrans, next_layer->n_neurons, layer->n_neurons, 1.0,
+        next_layer->weights, next_layer->n_inputs,  // CORRECT
         next_delta, 1, 0.0, temp, 1
     );
 
