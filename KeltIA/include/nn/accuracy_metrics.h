@@ -1,6 +1,15 @@
 #include "network.h"
-#include "train.h"
+// #include "train.h"
 #include <stddef.h>
+
+typedef struct
+{
+    double **inputs;
+    double **targets;
+    int num_samples;
+    size_t input_size;
+    size_t output_size;
+} Dataset;
 
 typedef struct
 {
