@@ -14,23 +14,20 @@ void delta_hidden_layer(
     Layer *layer,
     Layer *next_layer,
     double *next_delta,
-    double *out_delta,
-    size_t out_delta_size
+    double *out_delta
 );
 
 void gradient_weights(
     Layer *actual_layer,
     double *output_previous_layer,
     double *delta_actual_layer,
-    double *out_gradient,
-    size_t out_gradient_size
+    double *out_gradient
 );
 
 void gradient_biases(
     double *delta,
     size_t n_neurons,
-    double *out_gradient_biases,
-    size_t out_gradient_size
+    double *out_gradient_biases
 );
 
 void update_parameters(
