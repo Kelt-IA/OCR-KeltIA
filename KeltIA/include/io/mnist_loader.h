@@ -15,3 +15,4 @@ typedef struct
 MNISTData *load_mnist_images(const char *image_path, const char *label_path);
 void free_mnist_data(MNISTData *data);
 void mnist_to_dataset(MNISTData *mnist, Dataset **out_dataset);
+void emnist_letters_to_dataset(MNISTData *mnist, Dataset **out_dataset);
