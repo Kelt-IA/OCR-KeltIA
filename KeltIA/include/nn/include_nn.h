@@ -2,8 +2,10 @@
 
 #include "accuracy_metrics.h"
 #include "activation.h"
+#include "back-propagation-convolutional.h"
 #include "back-propagation.h"
 #include "config.h"
+#include "convolution.h"
 #include "errors.h"
 #include "layers.h"
 #include "network.h"
