@@ -191,6 +191,60 @@ void free_mnist_data(MNISTData *data)
     free(data);
 }
 
+void emnist_letters_to_dataset(MNISTData *mnist, Dataset **out_dataset)
+{
+    Dataset *dataset = malloc(sizeof(Dataset));
+    if (!dataset)
+    {
+        fprintf(stderr, "Error allocating dataset\n");
+        return;
+    }
+
+    dataset->num_samples = mnist->num_images;
+    dataset->input_size = 28 * 28;
+    dataset->output_size = 26;  // ← 26 letras
+
+    dataset->inputs = malloc(dataset->num_samples * sizeof(double *));
+    dataset->targets = malloc(dataset->num_samples * sizeof(double *));
+
+    if (!dataset->inputs || !dataset->targets)
+    {
+        fprintf(stderr, "Error allocating dataset arrays\n");
+        free(dataset);
+        return;
+    }
+
+    for (size_t i = 0; i < (size_t)dataset->num_samples; i++)
+    {
+        // Normalize pixels
+        dataset->inputs[i] = malloc(784 * sizeof(double));
+        for (size_t j = 0; j < 784; j++)
+        {
+            dataset->inputs[i][j] = mnist->images[i][j] / 255.0;
+        }
+
+        // One-hot encode: EMNIST labels son 1-26, convierte a 0-25
+        dataset->targets[i] = calloc(26, sizeof(double));
+        uint8_t label = mnist->labels[i];
+        if (label > 0 && label <= 26)
+        {
+            dataset->targets[i][label - 1] = 1.0;  // ← label-1
+        }
+        else
+        {
+            fprintf(
+                stderr, "Warning: invalid label %d at sample %zu\n", label, i
+            );
+        }
+    }
+
+    *out_dataset = dataset;
+    printf(
+        "✓ Converted to dataset: %d samples, input_size=%zu, output_size=%zu\n",
+        dataset->num_samples, dataset->input_size, dataset->output_size
+    );
+}
+
 void mnist_to_dataset(MNISTData *mnist, Dataset **out_dataset)
 {
     Dataset *dataset = malloc(sizeof(Dataset));

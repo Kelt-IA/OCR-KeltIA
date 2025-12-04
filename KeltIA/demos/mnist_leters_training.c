@@ -51,9 +51,12 @@ int main(int argc, char *argv[])
     // Load MNIST data
     printf("Loading MNIST dataset...\n");
     MNISTData *train_data = load_mnist_images(
-        "data/mnist/train-images-idx3-ubyte",
-        "data/mnist/train-labels-idx1-ubyte"
+        "data/EMNIST/raw/emnist-letters-train-images-idx3-ubyte",
+        "data/EMNIST/raw/emnist-letters-train-labels-idx1-ubyte"
     );
+
+    // Labels son 0-25 (A-Z)
+    // Convertir a letra: char letter = 'A' + label;
 
     if (!train_data)
     {
@@ -63,7 +66,8 @@ int main(int argc, char *argv[])
     }
 
     MNISTData *test_data = load_mnist_images(
-        "data/mnist/t10k-images-idx3-ubyte", "data/mnist/t10k-labels-idx1-ubyte"
+        "data/EMNIST/raw/emnist-letters-test-images-idx3-ubyte",
+        "data/EMNIST/raw/emnist-letters-test-labels-idx1-ubyte"
     );
 
     if (!test_data)
@@ -77,8 +81,8 @@ int main(int argc, char *argv[])
     Dataset *train_dataset = NULL;
     Dataset *test_dataset = NULL;
 
-    mnist_to_dataset(train_data, &train_dataset);
-    mnist_to_dataset(test_data, &test_dataset);
+    emnist_letters_to_dataset(train_data, &train_dataset);
+    emnist_letters_to_dataset(test_data, &test_dataset);
 
     if (!train_dataset || !test_dataset)
     {
@@ -101,7 +105,7 @@ int main(int argc, char *argv[])
         // Conv2: 8x12x12 -> 16 filters 3x3, stride 1, no padding -> 16x10x10
         // Pool2: 16x10x10 -> 2x2, stride 2 -> 16x5x5 = 400
         // Dense1: 400 -> 128
-        // Dense2: 128 -> 10
+        // Dense2: 128 -> 26
 
         ConvLayer conv_configs[2];
 
@@ -132,7 +136,7 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
-        size_t dense_neurons[] = {128, 10};
+        size_t dense_neurons[] = {128, 26};  // 26 for 26 letters
         ActivationType activations[] = {
             ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID
         };
@@ -161,7 +165,7 @@ int main(int argc, char *argv[])
         printf("  Pool2: 16x10x10 -> 2x2 pool -> 16x5x5\n");
         printf("  Flatten: %zu (16*5*5 = 400)\n", nn.flattened_size);
         printf("  Dense1: %zu -> 128 (Leaky ReLU)\n", nn.flattened_size);
-        printf("  Dense2: 128 -> 10 (Sigmoid)\n");
+        printf("  Dense2: 128 -> 26 (Sigmoid)\n");
     }
     else
     {
@@ -187,8 +191,9 @@ int main(int argc, char *argv[])
     nn.learning_rate = 0.01;
     size_t total_epochs = 0;
     const size_t epochs_per_save = 1;
-    const size_t batch_size =
-        1;  // SGD (ignored in new train.c, but kept for compatibility)
+
+    // SGD (ignored in new train.c, but kept for compatibility)
+    const size_t batch_size = 1;
 
     printf("\nTraining Configuration:\n");
     printf("  Learning rate: %.4f\n", nn.learning_rate);
