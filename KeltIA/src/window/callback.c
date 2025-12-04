@@ -22,6 +22,7 @@ void callback_init(GtkBuilder *b)
 
 void on_autorotate_check(GtkToggleButton *toggle_button, gpointer user_data)
 {
+    (void)user_data;
     gboolean active = gtk_toggle_button_get_active(toggle_button);
 
     if (active) { gtk_widget_set_sensitive(rotation_box, FALSE); }
