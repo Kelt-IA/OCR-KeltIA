@@ -16,22 +16,25 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn);
 
 /*
 MAGIC
-{n_layers}
+{n_conv_layers}
 
-{n_neurons_layer_1}
+// For each conv layer:
+{input_channels}
+{input_height}
+{input_width}
+{n_filters}
+{kernel_height}
+{kernel_width}
+{stride}
+{padding}
+{kernels}
+{biases}
+
+{n_dense_layers}
+
+// For each dense layer:
+{n_neurons_layer_i}
 {activation_type}
-{biases_layer_1}
-{weights_layer_1}
-
-{n_neurons_layer_2}
-{activation_type}
-{biases_layer_2}
-{weights_layer_2}
-
-...
-
-{n_neurons_layer_n}
-{activation_type}
-{biases_layer_n}
-{weights_layer_n}
+{biases_layer_i}
+{weights_layer_i}
 */
