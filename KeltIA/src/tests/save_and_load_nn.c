@@ -421,8 +421,9 @@ int test_cnn_save_load(int verbose)
     {
         conv_configs[0].kernels[i] = i * 0.1;
     }
-    conv_configs[0].bias[0] = 0.5;
-    conv_configs[0].bias[1] = -0.5;
+
+    conv_configs[0].bias[0] = 0.98009;  // Magic numbersssss
+    conv_configs[0].bias[1] = -0.73671;
 
     // size_t dense_neurons[] = {3};
     // ActivationType activations[] = {ACTIVATION_SIGMOID};
@@ -442,6 +443,23 @@ int test_cnn_save_load(int verbose)
         activations,    // activations array
         &cnn            // output network
     );
+
+    // Randomize ALL dense layer parameters
+    for (size_t l = 0; l < cnn.n_layers; l++)
+    {
+        // Randomize weights
+        size_t weight_size = cnn.layers[l].n_neurons * cnn.layers[l].n_inputs;
+        for (size_t i = 0; i < weight_size; i++)
+        {
+            cnn.layers[l].weights[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        }
+
+        // Randomize biases (IMPORTANTE - no dejar en 0)
+        for (size_t i = 0; i < cnn.layers[l].n_neurons; i++)
+        {
+            cnn.layers[l].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        }
+    }
 
     ErrorCode err = save_nn(TEST_FILE_CNN, &cnn);
     if (err != NN_ERR_OK)
