@@ -6,7 +6,7 @@ GTK_CFLAGS 		:= $(shell pkg-config --cflags gtk+-3.0)
 GTK_LIBS			:= $(shell pkg-config --libs   gtk+-3.0)
 
 CFLAGS = -Iinclude -Wall -Wextra -Werror -g -O2 $(MAGICK_CFLAGS) $(GTK_CFLAGS)
-LDFLAGS = -lm -fsanitize=address $(MAGICK_LIBS) $(GTK_LIBS)
+LDFLAGS = -lm -fsanitize=address $(MAGICK_LIBS) $(GTK_LIBS) -lopenblas
 
 # GTK create memory leaks unrelated to our code
 # So we need separeted linker arguments for window demo
