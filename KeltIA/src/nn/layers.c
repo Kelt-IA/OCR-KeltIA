@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <cblas.h>
+
 void free_layer(Layer *layer)
 {
     if (!layer) return;
@@ -37,18 +39,24 @@ void set_activation(Layer *layer, ActivationType type)
     }
 }
 
-void foward_layer(Layer *layer, double *input)
+void forward_layer(Layer *layer, double *input)
 {
+    // z = W * input + bias
+    cblas_dgemv(
+        CblasRowMajor, CblasNoTrans, layer->n_neurons,
+        layer->n_inputs,                  // M x N de W
+        1.0,                              // alpha
+        layer->weights, layer->n_inputs,  // W, lda = n_inputs
+        input, 1,                         // vector input, incx=1
+        0.0, layer->z, 1
+    );
+
+    // bias: z += bias
+    cblas_daxpy(layer->n_neurons, 1.0, layer->bias, 1, layer->z, 1);
+
     for (size_t j = 0; j < layer->n_neurons; j++)
     {
-        double sum = layer->bias[j];
-        for (size_t i = 0; i < layer->n_inputs; i++)
-        {
-            sum += input[i] * layer->weights[j * layer->n_inputs + i];
-        }
-
-        layer->z[j] = sum;
-        layer->output[j] = layer->activation_fn(sum);
+        layer->output[j] = layer->activation_fn(layer->z[j]);
     }
 }
 
