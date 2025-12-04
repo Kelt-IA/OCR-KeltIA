@@ -230,6 +230,229 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
     return all_match;
 }
 
+const char *TEST_FILE_CNN = "ressources/simple_cnn.nn";
+
+int compare_conv_layers(
+    const ConvLayer *a,
+    const ConvLayer *b,
+    int verbose,
+    size_t layer_idx
+)
+{
+    int result = 1;
+
+    if (verbose)
+    {
+        printf(COLOR_BLUE "\n--- Conv Layer %zu ---\n" COLOR_RESET, layer_idx);
+        printf(
+            "Config: %zux%zux%zu input, %zu filters, kernel %zux%zu, stride "
+            "%zu, padding %zu\n",
+            a->input_height, a->input_width, a->input_channels, a->n_filters,
+            a->kernel_height, a->kernel_width, a->stride, a->padding
+        );
+    }
+
+    // Compare configuration
+    if (a->input_channels != b->input_channels ||
+        a->input_height != b->input_height ||
+        a->input_width != b->input_width || a->n_filters != b->n_filters ||
+        a->kernel_height != b->kernel_height ||
+        a->kernel_width != b->kernel_width || a->stride != b->stride ||
+        a->padding != b->padding)
+    {
+        if (verbose)
+        {
+            printf(COLOR_RED "✗ Configuration mismatch\n" COLOR_RESET);
+        }
+        return 0;
+    }
+
+    // Compare kernels
+    size_t kernel_size =
+        a->n_filters * a->input_channels * a->kernel_height * a->kernel_width;
+    int kernels_match = 1;
+
+    for (size_t i = 0; i < kernel_size; i++)
+    {
+        if (a->kernels[i] != b->kernels[i])
+        {
+            kernels_match = 0;
+            break;
+        }
+    }
+
+    if (verbose)
+    {
+        printf("\nKernels [%zu total weights]:\n", kernel_size);
+        if (kernels_match) { printf(COLOR_GREEN "  ✓ MATCH\n" COLOR_RESET); }
+        else
+        {
+            printf(COLOR_RED "  ✗ DIFFERENT\n" COLOR_RESET);
+            result = 0;
+        }
+    }
+    else if (!kernels_match) { return 0; }
+
+    // Compare biases
+    int biases_match = 1;
+    for (size_t i = 0; i < a->n_filters; i++)
+    {
+        if (a->bias[i] != b->bias[i])
+        {
+            biases_match = 0;
+            break;
+        }
+    }
+
+    if (verbose)
+    {
+        printf("\nBiases:\n");
+        printf("  A: ");
+        print_double_array_compact(a->bias, a->n_filters);
+        printf("\n");
+        printf("  B: ");
+        print_double_array_compact(b->bias, a->n_filters);
+        printf("\n");
+
+        if (biases_match) { printf(COLOR_GREEN "  ✓ MATCH\n" COLOR_RESET); }
+        else
+        {
+            printf(COLOR_RED "  ✗ DIFFERENT\n" COLOR_RESET);
+            result = 0;
+        }
+    }
+    else if (!biases_match) { return 0; }
+
+    return result;
+}
+
+int compare_cnn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
+{
+    if (verbose)
+    {
+        printf(COLOR_BLUE "\n========================================\n");
+        printf("           CNN Comparison\n");
+        printf("========================================\n" COLOR_RESET);
+        printf(
+            "Conv layers: %zu, Dense layers: %zu\n", a->n_conv_layers,
+            a->n_layers
+        );
+    }
+
+    // Compare structure
+    if (a->n_conv_layers != b->n_conv_layers)
+    {
+        if (verbose)
+        {
+            printf(
+                COLOR_RED "✗ n_conv_layers: %zu vs %zu\n" COLOR_RESET,
+                a->n_conv_layers, b->n_conv_layers
+            );
+        }
+        return 0;
+    }
+
+    if (a->n_layers != b->n_layers)
+    {
+        if (verbose)
+        {
+            printf(
+                COLOR_RED "✗ n_layers: %zu vs %zu\n" COLOR_RESET, a->n_layers,
+                b->n_layers
+            );
+        }
+        return 0;
+    }
+
+    int all_match = 1;
+
+    // Compare conv layers
+    for (size_t i = 0; i < a->n_conv_layers; i++)
+    {
+        if (!compare_conv_layers(
+                &a->conv_layers[i], &b->conv_layers[i], verbose, i
+            ))
+        {
+            all_match = 0;
+            if (!verbose) return 0;
+        }
+    }
+
+    // Compare dense layers
+    for (size_t i = 0; i < a->n_layers; i++)
+    {
+        if (!compare_layers(&a->layers[i], &b->layers[i], verbose, i))
+        {
+            all_match = 0;
+            if (!verbose) return 0;
+        }
+    }
+
+    if (verbose)
+    {
+        printf(
+            COLOR_BLUE
+            "\n========================================\n" COLOR_RESET
+        );
+        if (all_match)
+        {
+            printf(COLOR_GREEN "       ✓ CNNs IDENTICAL\n" COLOR_RESET);
+        }
+        else
+        {
+            printf(COLOR_RED "       ✗ CNNs DIFFERENT\n" COLOR_RESET);
+        }
+        printf(
+            COLOR_BLUE
+            "========================================\n\n" COLOR_RESET
+        );
+    }
+
+    return all_match;
+}
+
+int test_cnn_save_load(int verbose)
+{
+    ConvLayer conv_configs[1];
+    create_conv_layer(&conv_configs[0], 1, 8, 8, 2, 3, 3, 1, 0);
+
+    // Set kernel values
+    for (size_t i = 0; i < 2 * 1 * 3 * 3; i++)
+    {
+        conv_configs[0].kernels[i] = i * 0.1;
+    }
+    conv_configs[0].bias[0] = 0.5;
+    conv_configs[0].bias[1] = -0.5;
+
+    size_t dense_neurons[] = {3};
+    ActivationType activations[] = {ACTIVATION_SIGMOID};
+
+    NeuronalNetwork cnn;
+    create_cnn(1, conv_configs, 1, dense_neurons, activations, &cnn);
+
+    ErrorCode err = save_nn(TEST_FILE_CNN, &cnn);
+    if (err != NN_ERR_OK)
+    {
+        free_nn(&cnn);
+        return 0;
+    }
+
+    NeuronalNetwork loaded_cnn;
+    err = load_nn(TEST_FILE_CNN, &loaded_cnn);
+    if (err != NN_ERR_OK)
+    {
+        free_nn(&cnn);
+        return 0;
+    }
+
+    int equal = compare_cnn(&cnn, &loaded_cnn, verbose);
+
+    free_nn(&cnn);
+    free_nn(&loaded_cnn);
+
+    return equal;
+}
+
 int test_write_nn()
 {
     NeuronalNetwork nn;
