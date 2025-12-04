@@ -213,35 +213,108 @@ void backpropagation(
 
     compute_nn(nn, input, NULL);
 
-    Layer *last_layer = &nn->layers[nn->n_layers - 1];
-    delta_output(
-        last_layer, expected_output, deltas[nn->n_layers - 1],
-        last_layer->n_neurons
-    );
-
-    for (int l = (int)nn->n_layers - 2; l >= 0; l--)
+    // Backprop through dense layers
+    if (nn->n_layers > 0)
     {
-        Layer *actual_layer = &nn->layers[l];
-        Layer *next_layer = &nn->layers[l + 1];
-        double *delta_next = deltas[l + 1];
-
-        delta_hidden_layer(actual_layer, next_layer, delta_next, deltas[l]);
-    }
-
-    for (size_t l = 0; l < nn->n_layers; l++)
-    {
-        Layer *actual_layer = &nn->layers[l];
-        double *previous_activation;
-
-        if (l == 0)
-            previous_activation = input;
-        else
-            previous_activation = nn->layers[l - 1].output;
-
-        gradient_weights(
-            actual_layer, previous_activation, deltas[l], grad_weights[l]
+        Layer *last_layer = &nn->layers[nn->n_layers - 1];
+        delta_output(
+            last_layer, expected_output, deltas[nn->n_layers - 1],
+            last_layer->n_neurons
         );
 
-        gradient_biases(deltas[l], actual_layer->n_neurons, grad_biases[l]);
+        for (int l = (int)nn->n_layers - 2; l >= 0; l--)
+        {
+            Layer *actual_layer = &nn->layers[l];
+            Layer *next_layer = &nn->layers[l + 1];
+            double *delta_next = deltas[l + 1];
+
+            delta_hidden_layer(actual_layer, next_layer, delta_next, deltas[l]);
+        }
+
+        // Compute gradients for dense layers
+        for (size_t l = 0; l < nn->n_layers; l++)
+        {
+            Layer *actual_layer = &nn->layers[l];
+            double *previous_activation;
+
+            if (l == 0)
+            {
+                // First dense layer: input comes from flattened conv or
+                // original input
+                previous_activation =
+                    (nn->n_conv_layers > 0) ? nn->flattened : input;
+            }
+            else
+            {
+                previous_activation = nn->layers[l - 1].output;
+            }
+
+            gradient_weights(
+                actual_layer, previous_activation, deltas[l], grad_weights[l]
+            );
+            gradient_biases(deltas[l], actual_layer->n_neurons, grad_biases[l]);
+        }
+    }
+
+    // Backprop through conv layers if they exist
+    if (nn->n_conv_layers > 0)
+    {
+        double *grad_flattened = calloc(nn->flattened_size, sizeof(double));
+
+        if (nn->n_layers > 0)
+        {
+            // Propagate gradient from first dense layer back to flattened
+            Layer *first_dense = &nn->layers[0];
+            cblas_dgemv(
+                CblasRowMajor, CblasTrans, first_dense->n_neurons,
+                first_dense->n_inputs, 1.0, first_dense->weights,
+                first_dense->n_inputs, deltas[0], 1, 0.0, grad_flattened, 1
+            );
+        }
+
+        // Backprop through conv layers
+        double *grad_conv_output = grad_flattened;
+
+        for (int i = (int)nn->n_conv_layers - 1; i >= 0; i--)
+        {
+            double *grad_kernels;
+            double *grad_bias;
+            get_empty_conv_gradients(
+                &nn->conv_layers[i], &grad_kernels, &grad_bias
+            );
+
+            double *grad_input = NULL;
+            if (i > 0)
+            {
+                size_t prev_output_size = nn->conv_layers[i - 1].n_filters *
+                                          nn->conv_layers[i - 1].output_height *
+                                          nn->conv_layers[i - 1].output_width;
+                grad_input = calloc(prev_output_size, sizeof(double));
+            }
+
+            backward_conv_layer(
+                &nn->conv_layers[i], grad_conv_output, grad_input, grad_kernels,
+                grad_bias
+            );
+
+            // Store gradients in conv layer for later update
+            // (or update immediately depending on your train loop)
+            update_conv_parameters(
+                &nn->conv_layers[i], grad_kernels, grad_bias, 0.01
+            );
+
+            free(grad_kernels);
+            free(grad_bias);
+
+            if (i > 0)
+            {
+                if (grad_conv_output != grad_flattened) free(grad_conv_output);
+                grad_conv_output = grad_input;
+            }
+            else if (grad_input) { free(grad_input); }
+        }
+
+        if (grad_conv_output != grad_flattened) free(grad_conv_output);
+        free(grad_flattened);
     }
 }
