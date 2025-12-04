@@ -5,14 +5,44 @@
 #include <stdlib.h>
 #include <string.h>
 
+// convolution.c - Añade o corrige esta función
+
 void free_conv_layer(ConvLayer *conv)
 {
     if (!conv) return;
-    if (conv->kernels) free(conv->kernels);
-    if (conv->bias) free(conv->bias);
-    if (conv->output) free(conv->output);
-    if (conv->input_cache) free(conv->input_cache);
-    if (conv->col_buffer) free(conv->col_buffer);
+
+    if (conv->kernels)
+    {
+        free(conv->kernels);
+        conv->kernels = NULL;
+    }
+
+    if (conv->bias)
+    {
+        free(conv->bias);
+        conv->bias = NULL;
+    }
+
+    if (conv->output)
+    {
+        free(conv->output);
+        conv->output = NULL;
+    }
+
+    if (conv->col_buffer)
+    {
+        free(conv->col_buffer);
+        conv->col_buffer = NULL;
+    }
+
+    if (conv->input_cache)
+    {
+        free(conv->input_cache);
+        conv->input_cache = NULL;
+    }
+
+    // Reset all values to 0
+    memset(conv, 0, sizeof(ConvLayer));
 }
 
 int create_conv_layer(

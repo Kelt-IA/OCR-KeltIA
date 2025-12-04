@@ -67,13 +67,22 @@ void backward_conv_layer(
     size_t K = conv->input_channels * conv->kernel_height * conv->kernel_width;
     size_t N = conv->output_height * conv->output_width;
 
-    // ✅ AÑADIR: Apply ReLU derivative to grad_output
+    // Apply ReLU derivative to grad_output
     double *grad_output_activated = malloc(M * N * sizeof(double));
+    if (!grad_output_activated)
+    {
+        fprintf(
+            stderr, "back-propagation-convolutional.c: Error allocating "
+                    "grad_output_activated\n"
+        );
+        return;
+    }
+
     memcpy(grad_output_activated, grad_output, M * N * sizeof(double));
 
+    // ReLU derivative: grad * (output > 0 ? 1 : 0)
     for (size_t i = 0; i < M * N; i++)
     {
-        // ReLU derivative: 1 if output > 0, else 0
         if (conv->output[i] <= 0.0) { grad_output_activated[i] = 0.0; }
     }
 
@@ -104,6 +113,7 @@ void backward_conv_layer(
         grad_output_activated, N, conv->col_buffer, N, 1.0, grad_kernels, K
     );
 
+    // Only compute gradient w.r.t input if grad_input is not NULL
     if (grad_input != NULL)
     {
         double *grad_col = calloc(K * N, sizeof(double));
