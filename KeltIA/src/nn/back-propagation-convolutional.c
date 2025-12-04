@@ -1,57 +1,25 @@
-#include "../../include/nn/back-propagation-convolutional.h"
-#include "../../include/nn/convolution.h"
+// back-propagation-convolutional.c - VERSIÓN COMPLETA CORREGIDA
 #include "../../include/nn/include_nn.h"
-#include <cblas.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// Col2im: inverse of im2col, accumulates columns back to image format
-void col2im(
-    const double *col_buffer,
-    size_t channels,
-    size_t height,
-    size_t width,
-    size_t kernel_h,
-    size_t kernel_w,
-    size_t stride,
-    size_t padding,
-    double *output
+void get_empty_conv_gradients(
+    ConvLayer *conv,
+    double **out_grad_kernels,
+    double **out_grad_bias
 )
 {
-    size_t output_h = (height + 2 * padding - kernel_h) / stride + 1;
-    size_t output_w = (width + 2 * padding - kernel_w) / stride + 1;
+    size_t kernel_size = conv->n_filters * conv->input_channels *
+                         conv->kernel_height * conv->kernel_width;
 
-    // Initialize output to zero
-    memset(output, 0, channels * height * width * sizeof(double));
+    *out_grad_kernels = calloc(kernel_size, sizeof(double));
+    *out_grad_bias = calloc(conv->n_filters, sizeof(double));
 
-    size_t col_idx = 0;
-
-    for (size_t c = 0; c < channels; c++)
+    if (!(*out_grad_kernels) || !(*out_grad_bias))
     {
-        for (size_t kh = 0; kh < kernel_h; kh++)
-        {
-            for (size_t kw = 0; kw < kernel_w; kw++)
-            {
-                for (size_t out_h = 0; out_h < output_h; out_h++)
-                {
-                    for (size_t out_w = 0; out_w < output_w; out_w++)
-                    {
-                        int h_idx = (int)(out_h * stride + kh) - (int)padding;
-                        int w_idx = (int)(out_w * stride + kw) - (int)padding;
-
-                        if (h_idx >= 0 && h_idx < (int)height && w_idx >= 0 &&
-                            w_idx < (int)width)
-                        {
-                            size_t output_idx =
-                                c * height * width + h_idx * width + w_idx;
-                            output[output_idx] += col_buffer[col_idx];
-                        }
-                        col_idx++;
-                    }
-                }
-            }
-        }
+        fprintf(stderr, "Error allocating conv gradients\n");
+        exit(1);
     }
 }
 
@@ -63,85 +31,139 @@ void backward_conv_layer(
     double *grad_bias
 )
 {
-    size_t M = conv->n_filters;
-    size_t K = conv->input_channels * conv->kernel_height * conv->kernel_width;
-    size_t N = conv->output_height * conv->output_width;
-
-    // Apply ReLU derivative to grad_output
-    double *grad_output_activated = malloc(M * N * sizeof(double));
-    if (!grad_output_activated)
+    if (!conv || !grad_output || !grad_kernels || !grad_bias)
     {
-        fprintf(
-            stderr, "back-propagation-convolutional.c: Error allocating "
-                    "grad_output_activated\n"
-        );
+        fprintf(stderr, "backward_conv_layer: NULL pointer\n");
         return;
     }
 
-    memcpy(grad_output_activated, grad_output, M * N * sizeof(double));
+    int out_h = conv->output_height;
+    int out_w = conv->output_width;
+    int in_h = conv->input_height;
+    int in_w = conv->input_width;
+    int K_h = conv->kernel_height;
+    int K_w = conv->kernel_width;
+    int stride = conv->stride;
+    int pad = conv->padding;
 
-    // ReLU derivative: grad * (output > 0 ? 1 : 0)
-    for (size_t i = 0; i < M * N; i++)
+    // 1. Compute gradient w.r.t bias
+    for (size_t f = 0; f < conv->n_filters; f++)
     {
-        if (conv->output[i] <= 0.0) { grad_output_activated[i] = 0.0; }
-    }
+        double bias_grad = 0.0;
 
-    double *ones = malloc(N * sizeof(double));
-    if (!ones)
-    {
-        fprintf(
-            stderr,
-            "back-propagation-convolutional.c: Error allocating ones vector\n"
-        );
-        free(grad_output_activated);
-        return;
-    }
-
-    for (size_t i = 0; i < N; i++) { ones[i] = 1.0; }
-
-    // grad_bias += grad_output_activated * ones
-    cblas_dgemv(
-        CblasRowMajor, CblasNoTrans, M, N, 1.0, grad_output_activated, N, ones,
-        1, 1.0, grad_bias, 1
-    );
-
-    free(ones);
-
-    // Compute gradient w.r.t kernels using GEMM
-    cblas_dgemm(
-        CblasRowMajor, CblasNoTrans, CblasTrans, M, K, N, 1.0,
-        grad_output_activated, N, conv->col_buffer, N, 1.0, grad_kernels, K
-    );
-
-    // Only compute gradient w.r.t input if grad_input is not NULL
-    if (grad_input != NULL)
-    {
-        double *grad_col = calloc(K * N, sizeof(double));
-        if (!grad_col)
+        for (int y = 0; y < out_h; y++)
         {
-            fprintf(
-                stderr,
-                "back-propagation-convolutional.c: Error allocating grad_col\n"
-            );
-            free(grad_output_activated);
-            return;
+            for (int x = 0; x < out_w; x++)
+            {
+                size_t out_idx = f * out_h * out_w + y * out_w + x;
+
+                // ReLU derivative: gradient flows only where output > 0
+                if (conv->output[out_idx] > 0.0)
+                {
+                    bias_grad += grad_output[out_idx];
+                }
+            }
         }
 
-        cblas_dgemm(
-            CblasRowMajor, CblasTrans, CblasNoTrans, K, N, M, 1.0,
-            conv->kernels, K, grad_output_activated, N, 0.0, grad_col, N
-        );
-
-        col2im(
-            grad_col, conv->input_channels, conv->input_height,
-            conv->input_width, conv->kernel_height, conv->kernel_width,
-            conv->stride, conv->padding, grad_input
-        );
-
-        free(grad_col);
+        grad_bias[f] += bias_grad;
     }
 
-    free(grad_output_activated);
+    // 2. Compute gradient w.r.t kernels
+    for (size_t f = 0; f < conv->n_filters; f++)
+    {
+        for (size_t c = 0; c < conv->input_channels; c++)
+        {
+            for (int k_y = 0; k_y < K_h; k_y++)
+            {
+                for (int k_x = 0; k_x < K_w; k_x++)
+                {
+                    double kernel_grad = 0.0;
+
+                    for (int out_y = 0; out_y < out_h; out_y++)
+                    {
+                        for (int out_x = 0; out_x < out_w; out_x++)
+                        {
+                            size_t out_idx =
+                                f * out_h * out_w + out_y * out_w + out_x;
+
+                            // ReLU derivative
+                            if (conv->output[out_idx] > 0.0)
+                            {
+                                int in_y = out_y * stride + k_y - pad;
+                                int in_x = out_x * stride + k_x - pad;
+
+                                if (in_y >= 0 && in_y < in_h && in_x >= 0 &&
+                                    in_x < in_w)
+                                {
+                                    size_t input_idx =
+                                        c * in_h * in_w + in_y * in_w + in_x;
+                                    kernel_grad += grad_output[out_idx] *
+                                                   conv->input_cache[input_idx];
+                                }
+                            }
+                        }
+                    }
+
+                    size_t kernel_idx =
+                        ((f * conv->input_channels + c) * K_h + k_y) * K_w +
+                        k_x;
+                    grad_kernels[kernel_idx] += kernel_grad;
+                }
+            }
+        }
+    }
+
+    // 3. Compute gradient w.r.t input (only if needed)
+    if (grad_input != NULL)
+    {
+        size_t input_size = conv->input_channels * in_h * in_w;
+        memset(grad_input, 0, input_size * sizeof(double));
+
+        for (size_t f = 0; f < conv->n_filters; f++)
+        {
+            for (int out_y = 0; out_y < out_h; out_y++)
+            {
+                for (int out_x = 0; out_x < out_w; out_x++)
+                {
+                    size_t out_idx = f * out_h * out_w + out_y * out_w + out_x;
+
+                    // ReLU derivative
+                    if (conv->output[out_idx] > 0.0)
+                    {
+                        double grad_out = grad_output[out_idx];
+
+                        for (size_t c = 0; c < conv->input_channels; c++)
+                        {
+                            for (int k_y = 0; k_y < K_h; k_y++)
+                            {
+                                for (int k_x = 0; k_x < K_w; k_x++)
+                                {
+                                    int in_y = out_y * stride + k_y - pad;
+                                    int in_x = out_x * stride + k_x - pad;
+
+                                    if (in_y >= 0 && in_y < in_h && in_x >= 0 &&
+                                        in_x < in_w)
+                                    {
+                                        size_t input_idx = c * in_h * in_w +
+                                                           in_y * in_w + in_x;
+                                        size_t kernel_idx =
+                                            ((f * conv->input_channels + c) *
+                                                 K_h +
+                                             k_y) *
+                                                K_w +
+                                            k_x;
+                                        grad_input[input_idx] +=
+                                            grad_out *
+                                            conv->kernels[kernel_idx];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 void update_conv_parameters(
@@ -154,33 +176,13 @@ void update_conv_parameters(
     size_t kernel_size = conv->n_filters * conv->input_channels *
                          conv->kernel_height * conv->kernel_width;
 
-    // Update kernels: kernels -= learning_rate * grad_kernels
-    cblas_daxpy(kernel_size, -learning_rate, grad_kernels, 1, conv->kernels, 1);
-
-    // Update bias: bias -= learning_rate * grad_bias
-    cblas_daxpy(conv->n_filters, -learning_rate, grad_bias, 1, conv->bias, 1);
-}
-
-void get_empty_conv_gradients(
-    ConvLayer *conv,
-    double **grad_kernels,
-    double **grad_bias
-)
-{
-    size_t kernel_size = conv->n_filters * conv->input_channels *
-                         conv->kernel_height * conv->kernel_width;
-
-    *grad_kernels = calloc(kernel_size, sizeof(double));
-    *grad_bias = calloc(conv->n_filters, sizeof(double));
-
-    if (!(*grad_kernels) || !(*grad_bias))
+    for (size_t i = 0; i < kernel_size; i++)
     {
-        fprintf(
-            stderr,
-            "back-propagation-convolutional.c: Error allocating gradients\n"
-        );
-        if (*grad_kernels) free(*grad_kernels);
-        if (*grad_bias) free(*grad_bias);
-        exit(1);
+        conv->kernels[i] -= learning_rate * grad_kernels[i];
+    }
+
+    for (size_t i = 0; i < conv->n_filters; i++)
+    {
+        conv->bias[i] -= learning_rate * grad_bias[i];
     }
 }
