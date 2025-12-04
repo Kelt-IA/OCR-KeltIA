@@ -81,11 +81,15 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Create necessary folders
+$(BIN_DIR):
+	@mkdir -p $(BIN_DIR)
+
+$(BUILD_DIR):
+	@mkdir -p $(BUILD_DIR)
+
 $(BUILD_DIR)/nn:
 	@mkdir -p $(BUILD_DIR)/nn
 
-$(BIN_DIR):
-	@mkdir -p $(BIN_DIR)
 
 # Execution targets
 test: $(BIN_DIR)/tests
