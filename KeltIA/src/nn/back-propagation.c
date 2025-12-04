@@ -193,21 +193,25 @@ void get_empty_gradients(
     }
 }
 
+// back-propagation.c - VERSIÓN CORREGIDA (sin double-free)
 void backpropagation(
     NeuronalNetwork *nn,
     double *input,
     double *expected_output,
     double **deltas,
     double **grad_weights,
-    double **grad_biases
+    double **grad_biases,
+    double **conv_grad_kernels,
+    double **conv_grad_bias
 )
 {
     if (!deltas)
     {
-        fprintf(stderr, "back-propagation.c: Invalid pointer provided");
+        fprintf(stderr, "back-propagation.c: Invalid pointer provided\n");
         exit(1);
     }
 
+    // Forward pass
     compute_nn(nn, input, NULL);
 
     // Backprop through dense layers
@@ -236,8 +240,6 @@ void backpropagation(
 
             if (l == 0)
             {
-                // First dense layer: input comes from flattened conv or
-                // original input
                 previous_activation =
                     (nn->n_conv_layers > 0) ? nn->flattened : input;
             }
@@ -253,10 +255,15 @@ void backpropagation(
         }
     }
 
-    // Backprop through conv layers with pooling support
-    if (nn->n_conv_layers > 0)
+    // Backprop through conv layers
+    if (nn->n_conv_layers > 0 && conv_grad_kernels && conv_grad_bias)
     {
         double *grad_flattened = calloc(nn->flattened_size, sizeof(double));
+        if (!grad_flattened)
+        {
+            fprintf(stderr, "Error allocating grad_flattened\n");
+            exit(1);
+        }
 
         if (nn->n_layers > 0)
         {
@@ -269,104 +276,53 @@ void backpropagation(
             );
         }
 
-        double *grad_conv_output = grad_flattened;
+        // Backprop through each conv layer
+        double *current_grad = grad_flattened;
 
         for (int i = (int)nn->n_conv_layers - 1; i >= 0; i--)
         {
-            double *grad_kernels;
-            double *grad_bias;
-            get_empty_conv_gradients(
-                &nn->conv_layers[i], &grad_kernels, &grad_bias
-            );
+            double *next_grad = NULL;
 
-            double *grad_pool_input = NULL;
-            double *grad_input = NULL;
-
-            // Backprop through pooling if exists
-            if (nn->n_pool_layers > 0 && (size_t)i < nn->n_pool_layers)
-            {
-                // grad_conv_output is gradient w.r.t pool output
-                // We need gradient w.r.t pool input (which is conv output)
-                ConvLayer *conv = &nn->conv_layers[i];
-                size_t pool_input_size =
-                    conv->n_filters * conv->output_height * conv->output_width;
-                grad_pool_input = calloc(pool_input_size, sizeof(double));
-
-                backward_pool_layer(
-                    &nn->pool_layers[i], grad_conv_output, grad_pool_input
-                );
-
-                // Now grad_pool_input is gradient w.r.t conv output
-                // Backprop through conv layer
-                if (i > 0)
-                {
-                    // Need gradient w.r.t previous pool output (or conv output
-                    // if no pool)
-                    if (nn->n_pool_layers > 0 &&
-                        (size_t)(i - 1) < nn->n_pool_layers)
-                    {
-                        // Previous layer has pooling
-                        PoolLayer *prev_pool = &nn->pool_layers[i - 1];
-                        size_t prev_output_size = prev_pool->input_channels *
-                                                  prev_pool->output_height *
-                                                  prev_pool->output_width;
-                        grad_input = calloc(prev_output_size, sizeof(double));
-                    }
-                    else
-                    {
-                        // Previous layer has no pooling
-                        ConvLayer *prev_conv = &nn->conv_layers[i - 1];
-                        size_t prev_output_size = prev_conv->n_filters *
-                                                  prev_conv->output_height *
-                                                  prev_conv->output_width;
-                        grad_input = calloc(prev_output_size, sizeof(double));
-                    }
-                }
-
-                backward_conv_layer(
-                    &nn->conv_layers[i], grad_pool_input, grad_input,
-                    grad_kernels, grad_bias
-                );
-                free(grad_pool_input);
-            }
-            else
-            {
-                // No pooling for this layer
-                if (i > 0)
-                {
-                    ConvLayer *prev_conv = &nn->conv_layers[i - 1];
-                    size_t prev_output_size = prev_conv->n_filters *
-                                              prev_conv->output_height *
-                                              prev_conv->output_width;
-                    grad_input = calloc(prev_output_size, sizeof(double));
-                }
-
-                backward_conv_layer(
-                    &nn->conv_layers[i], grad_conv_output, grad_input,
-                    grad_kernels, grad_bias
-                );
-            }
-
-            // Update conv layer parameters
-            update_conv_parameters(
-                &nn->conv_layers[i], grad_kernels, grad_bias, nn->learning_rate
-            );
-
-            free(grad_kernels);
-            free(grad_bias);
-
-            // Update grad_conv_output for next iteration
+            // Allocate gradient for previous layer (if exists)
             if (i > 0)
             {
-                if (grad_conv_output != grad_flattened)
+                ConvLayer *prev_conv = &nn->conv_layers[i - 1];
+                size_t prev_output_size = prev_conv->n_filters *
+                                          prev_conv->output_height *
+                                          prev_conv->output_width;
+                next_grad = calloc(prev_output_size, sizeof(double));
+                if (!next_grad)
                 {
-                    free(grad_conv_output);
+                    fprintf(stderr, "Error allocating next_grad\n");
+                    // Cleanup
+                    if (current_grad != grad_flattened) free(current_grad);
+                    free(grad_flattened);
+                    exit(1);
                 }
-                grad_conv_output = grad_input;
             }
+
+            // Compute gradients for this conv layer
+            backward_conv_layer(
+                &nn->conv_layers[i], current_grad,
+                next_grad,  // Can be NULL for first conv layer
+                conv_grad_kernels[i], conv_grad_bias[i]
+            );
+
+            // Free current gradient if it's not the original grad_flattened
+            if (current_grad != grad_flattened) { free(current_grad); }
+
+            // Move to next iteration
+            current_grad = next_grad;
         }
 
-        if (grad_conv_output != grad_flattened) { free(grad_conv_output); }
+        // Free remaining gradients
+        // current_grad is either NULL (if n_conv_layers == 1) or the last
+        // allocated grad
+        if (current_grad != NULL && current_grad != grad_flattened)
+        {
+            free(current_grad);
+        }
+
         free(grad_flattened);
     }
 }

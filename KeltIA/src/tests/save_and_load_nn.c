@@ -424,11 +424,24 @@ int test_cnn_save_load(int verbose)
     conv_configs[0].bias[0] = 0.5;
     conv_configs[0].bias[1] = -0.5;
 
-    size_t dense_neurons[] = {3};
-    ActivationType activations[] = {ACTIVATION_SIGMOID};
+    // size_t dense_neurons[] = {3};
+    // ActivationType activations[] = {ACTIVATION_SIGMOID};
+
+    // create_cnn(1, conv_configs, 1, dense_neurons, activations, &cnn);
 
     NeuronalNetwork cnn;
-    create_cnn(1, conv_configs, 1, dense_neurons, activations, &cnn);
+
+    size_t dense_neurons[] = {128, 10};  // Asegúrate de que esté definido
+    ActivationType activations[] = {ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID};
+
+    create_cnn(
+        1,              // n_conv_layers
+        conv_configs,   // conv configs
+        2,              // n_dense_layers
+        dense_neurons,  // dense neurons array
+        activations,    // activations array
+        &cnn            // output network
+    );
 
     ErrorCode err = save_nn(TEST_FILE_CNN, &cnn);
     if (err != NN_ERR_OK)

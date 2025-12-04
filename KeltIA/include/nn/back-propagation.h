@@ -17,18 +17,18 @@ void delta_hidden_layer(
     double *out_delta
 );
 
-void gradient_weights(
-    Layer *actual_layer,
-    double *output_previous_layer,
-    double *delta_actual_layer,
-    double *out_gradient
-);
-
-void gradient_biases(
-    double *delta,
-    size_t n_neurons,
-    double *out_gradient_biases
-);
+// void gradient_weights(
+//     Layer *actual_layer,
+//     double *output_previous_layer,
+//     double *delta_actual_layer,
+//     double *out_gradient
+// );
+//
+// void gradient_biases(
+//     double *delta,
+//     size_t n_neurons,
+//     double *out_gradient_biases
+// );
 
 void update_parameters(
     Layer *layer,
@@ -43,7 +43,9 @@ void backpropagation(
     double *expected_output,
     double **deltas,
     double **grad_weights,
-    double **grad_biases
+    double **grad_biases,
+    double **conv_grad_kernels,  // NUEVO
+    double **conv_grad_bias      // NUEVO
 );
 
 void get_empty_deltas(NeuronalNetwork *nn, double ***out_deltas);

@@ -1,47 +1,17 @@
+// convolution.c - VERSIÓN DIRECTA (sin im2col, sin CBLAS)
 #include "../../include/nn/include_nn.h"
-#include <cblas.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// convolution.c - Añade o corrige esta función
-
 void free_conv_layer(ConvLayer *conv)
 {
     if (!conv) return;
-
-    if (conv->kernels)
-    {
-        free(conv->kernels);
-        conv->kernels = NULL;
-    }
-
-    if (conv->bias)
-    {
-        free(conv->bias);
-        conv->bias = NULL;
-    }
-
-    if (conv->output)
-    {
-        free(conv->output);
-        conv->output = NULL;
-    }
-
-    if (conv->col_buffer)
-    {
-        free(conv->col_buffer);
-        conv->col_buffer = NULL;
-    }
-
-    if (conv->input_cache)
-    {
-        free(conv->input_cache);
-        conv->input_cache = NULL;
-    }
-
-    // Reset all values to 0
+    if (conv->kernels) free(conv->kernels);
+    if (conv->bias) free(conv->bias);
+    if (conv->output) free(conv->output);
+    if (conv->input_cache) free(conv->input_cache);
     memset(conv, 0, sizeof(ConvLayer));
 }
 
@@ -91,13 +61,7 @@ int create_conv_layer(
     size_t input_size = input_channels * input_height * input_width;
     conv->input_cache = calloc(input_size, sizeof(double));
 
-    // Allocate column buffer for im2col
-    size_t col_height = input_channels * kernel_height * kernel_width;
-    size_t col_width = conv->output_height * conv->output_width;
-    conv->col_buffer = calloc(col_height * col_width, sizeof(double));
-
-    if (!conv->kernels || !conv->bias || !conv->output || !conv->input_cache ||
-        !conv->col_buffer)
+    if (!conv->kernels || !conv->bias || !conv->output || !conv->input_cache)
     {
         fprintf(stderr, "convolution.c: Error allocating memory\n");
         free_conv_layer(conv);
@@ -105,7 +69,6 @@ int create_conv_layer(
     }
 
     init_conv_weights(conv);
-
     return 0;
 }
 
@@ -121,65 +84,14 @@ void init_conv_weights(ConvLayer *conv)
 
     for (size_t i = 0; i < kernel_size; i++)
     {
-        // Generar número aleatorio con distribución normal aproximada
         double u1 = ((double)rand() / RAND_MAX);
         double u2 = ((double)rand() / RAND_MAX);
         double z = sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
-
         conv->kernels[i] = z * he_std;
     }
 }
 
-// Im2col transformation: converts image patches to columns for GEMM
-void im2col(
-    const double *input,
-    size_t channels,
-    size_t height,
-    size_t width,
-    size_t kernel_h,
-    size_t kernel_w,
-    size_t stride,
-    size_t padding,
-    double *col_buffer
-)
-{
-    size_t output_h = (height + 2 * padding - kernel_h) / stride + 1;
-    size_t output_w = (width + 2 * padding - kernel_w) / stride + 1;
-
-    size_t col_idx = 0;
-
-    for (size_t c = 0; c < channels; c++)
-    {
-        for (size_t kh = 0; kh < kernel_h; kh++)
-        {
-            for (size_t kw = 0; kw < kernel_w; kw++)
-            {
-                for (size_t out_h = 0; out_h < output_h; out_h++)
-                {
-                    for (size_t out_w = 0; out_w < output_w; out_w++)
-                    {
-                        int h_idx = (int)(out_h * stride + kh) - (int)padding;
-                        int w_idx = (int)(out_w * stride + kw) - (int)padding;
-
-                        if (h_idx >= 0 && h_idx < (int)height && w_idx >= 0 &&
-                            w_idx < (int)width)
-                        {
-                            size_t input_idx =
-                                c * height * width + h_idx * width + w_idx;
-                            col_buffer[col_idx] = input[input_idx];
-                        }
-                        else
-                        {
-                            col_buffer[col_idx] = 0.0;  // padding
-                        }
-                        col_idx++;
-                    }
-                }
-            }
-        }
-    }
-}
-
+// FORWARD CONVOLUTION - Implementación directa (SIN im2col)
 void forward_conv_layer(ConvLayer *conv, const double *input)
 {
     // Cache input for backprop
@@ -187,47 +99,59 @@ void forward_conv_layer(ConvLayer *conv, const double *input)
         conv->input_channels * conv->input_height * conv->input_width;
     memcpy(conv->input_cache, input, input_size * sizeof(double));
 
-    // Transform input to column format
-    im2col(
-        input, conv->input_channels, conv->input_height, conv->input_width,
-        conv->kernel_height, conv->kernel_width, conv->stride, conv->padding,
-        conv->col_buffer
-    );
+    int out_h = conv->output_height;
+    int out_w = conv->output_width;
+    int in_h = conv->input_height;
+    int in_w = conv->input_width;
+    int K_h = conv->kernel_height;
+    int K_w = conv->kernel_width;
+    int stride = conv->stride;
+    int pad = conv->padding;
 
-    size_t M = conv->n_filters;
-    size_t K = conv->input_channels * conv->kernel_height * conv->kernel_width;
-    size_t N = conv->output_height * conv->output_width;
-
-    // Matrix multiplication: output = kernels * col_buffer
-    cblas_dgemm(
-        CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1.0, conv->kernels,
-        K, conv->col_buffer, N, 0.0, conv->output, N
-    );
-
-    // Add bias using CBLAS
+    // Para cada filter de salida
     for (size_t f = 0; f < conv->n_filters; f++)
     {
-        cblas_daxpy(N, 1.0, &conv->bias[f], 0, &conv->output[f * N], 1);
-    }
-
-    // ✅ AÑADIR ACTIVACIÓN ReLU (CRÍTICO!)
-    size_t output_size = M * N;
-    for (size_t i = 0; i < output_size; i++)
-    {
-        if (conv->output[i] < 0.0)
+        // Para cada posición en el output
+        for (int out_y = 0; out_y < out_h; out_y++)
         {
-            conv->output[i] = 0.0;  // ReLU: max(0, x)
+            for (int out_x = 0; out_x < out_w; out_x++)
+            {
+                double sum = conv->bias[f];
+
+                // Para cada canal de entrada
+                for (size_t c = 0; c < conv->input_channels; c++)
+                {
+                    // Convolve el kernel sobre esta región
+                    for (int k_y = 0; k_y < K_h; k_y++)
+                    {
+                        for (int k_x = 0; k_x < K_w; k_x++)
+                        {
+                            // Posición en la imagen de entrada
+                            int in_y = out_y * stride + k_y - pad;
+                            int in_x = out_x * stride + k_x - pad;
+
+                            // Check bounds (padding)
+                            if (in_y >= 0 && in_y < in_h && in_x >= 0 &&
+                                in_x < in_w)
+                            {
+                                size_t input_idx =
+                                    c * in_h * in_w + in_y * in_w + in_x;
+                                size_t kernel_idx =
+                                    ((f * conv->input_channels + c) * K_h +
+                                     k_y) *
+                                        K_w +
+                                    k_x;
+                                sum += input[input_idx] *
+                                       conv->kernels[kernel_idx];
+                            }
+                        }
+                    }
+                }
+
+                // Escribir output con ReLU
+                size_t out_idx = f * out_h * out_w + out_y * out_w + out_x;
+                conv->output[out_idx] = (sum > 0.0) ? sum : 0.0;  // ReLU inline
+            }
         }
-    }
-}
-
-void apply_activation_conv(ConvLayer *conv, ActivationFunction activation_fn)
-{
-    size_t output_size =
-        conv->n_filters * conv->output_height * conv->output_width;
-
-    for (size_t i = 0; i < output_size; i++)
-    {
-        conv->output[i] = activation_fn(conv->output[i]);
     }
 }

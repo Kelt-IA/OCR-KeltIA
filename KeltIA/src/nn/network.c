@@ -18,16 +18,6 @@ void free_nn(NeuronalNetwork *nn)
         free(nn->conv_layers);
     }
 
-    // Free pool layers
-    if (nn->pool_layers)
-    {
-        for (size_t i = 0; i < nn->n_pool_layers; i++)
-        {
-            free_pool_layer(&nn->pool_layers[i]);
-        }
-        free(nn->pool_layers);
-    }
-
     // Free dense layers
     if (nn->layers)
     {
@@ -54,7 +44,6 @@ ErrorCode create_nn(
     memset(out_nn, 0, sizeof(NeuronalNetwork));
 
     out_nn->n_conv_layers = 0;
-    out_nn->n_pool_layers = 0;
     out_nn->n_layers = n_layers;
     out_nn->layers = malloc(sizeof(Layer) * n_layers);
 
@@ -88,7 +77,6 @@ ErrorCode create_nn(
 ErrorCode create_cnn(
     size_t n_conv_layers,
     ConvLayer *conv_configs,
-    int use_pooling,
     size_t n_dense_layers,
     size_t *dense_neurons,
     ActivationType *dense_activations,
@@ -114,55 +102,10 @@ ErrorCode create_cnn(
             out_nn->conv_layers, conv_configs, n_conv_layers * sizeof(ConvLayer)
         );
 
-        // Create pooling layers if requested
-        if (use_pooling)
-        {
-            out_nn->n_pool_layers = n_conv_layers;
-            out_nn->pool_layers = malloc(n_conv_layers * sizeof(PoolLayer));
-            if (!out_nn->pool_layers)
-            {
-                fprintf(stderr, "network.c: Error allocating pool layers\n");
-                free(out_nn->conv_layers);
-                return NN_ERR_MEMORY;
-            }
-
-            // Create pool layer after each conv layer
-            for (size_t i = 0; i < n_conv_layers; i++)
-            {
-                ConvLayer *conv = &out_nn->conv_layers[i];
-                int err = create_pool_layer(
-                    &out_nn->pool_layers[i], conv->n_filters,
-                    conv->output_height, conv->output_width,
-                    2,  // pool_size = 2x2
-                    2   // stride = 2
-                );
-
-                if (err != 0)
-                {
-                    fprintf(
-                        stderr, "network.c: Error creating pool layer %zu\n", i
-                    );
-                    free_nn(out_nn);
-                    return NN_ERR_MEMORY;
-                }
-            }
-        }
-
-        // Calculate flattened size from last conv/pool layer
-        if (use_pooling)
-        {
-            PoolLayer *last_pool = &out_nn->pool_layers[n_conv_layers - 1];
-            out_nn->flattened_size = last_pool->input_channels *
-                                     last_pool->output_height *
-                                     last_pool->output_width;
-        }
-        else
-        {
-            ConvLayer *last_conv = &out_nn->conv_layers[n_conv_layers - 1];
-            out_nn->flattened_size = last_conv->n_filters *
-                                     last_conv->output_height *
-                                     last_conv->output_width;
-        }
+        ConvLayer *last_conv = &out_nn->conv_layers[n_conv_layers - 1];
+        out_nn->flattened_size = last_conv->n_filters *
+                                 last_conv->output_height *
+                                 last_conv->output_width;
 
         out_nn->flattened = calloc(out_nn->flattened_size, sizeof(double));
         if (!out_nn->flattened)
@@ -222,41 +165,17 @@ void compute_nn(NeuronalNetwork *nn, double *input, double *output)
     for (size_t i = 0; i < nn->n_conv_layers; i++)
     {
         forward_conv_layer(&nn->conv_layers[i], current_input);
-
-        // Apply pooling if exists
-        if (nn->n_pool_layers > 0 && i < nn->n_pool_layers)
-        {
-            forward_pool_layer(&nn->pool_layers[i], nn->conv_layers[i].output);
-            current_input = nn->pool_layers[i].output;
-        }
-        else
-        {
-            current_input = nn->conv_layers[i].output;
-        }
+        current_input = nn->conv_layers[i].output;
     }
 
     // Flatten conv/pool output if exists
     if (nn->n_conv_layers > 0)
     {
-        if (nn->n_pool_layers > 0)
-        {
-            PoolLayer *last_pool = &nn->pool_layers[nn->n_pool_layers - 1];
-            size_t pool_output_size = last_pool->input_channels *
-                                      last_pool->output_height *
-                                      last_pool->output_width;
-            memcpy(
-                nn->flattened, last_pool->output,
-                pool_output_size * sizeof(double)
-            );
-        }
-        else
-        {
-            ConvLayer *last_conv = &nn->conv_layers[nn->n_conv_layers - 1];
-            memcpy(
-                nn->flattened, last_conv->output,
-                nn->flattened_size * sizeof(double)
-            );
-        }
+        ConvLayer *last_conv = &nn->conv_layers[nn->n_conv_layers - 1];
+        memcpy(
+            nn->flattened, last_conv->output,
+            nn->flattened_size * sizeof(double)
+        );
         current_input = nn->flattened;
     }
 

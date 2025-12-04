@@ -1,4 +1,4 @@
-// network_io.c
+// network_io.c - SIN POOLING
 #include "../../include/nn/include_nn.h"
 #include <stdio.h>
 #include <string.h>
@@ -96,44 +96,6 @@ ErrorCode load_conv_layer(FILE *f, ConvLayer *conv)
     return NN_ERR_OK;
 }
 
-ErrorCode save_pool_layer(FILE *f, const PoolLayer *pool)
-{
-    // Write pool layer configuration
-    fwrite(&pool->input_channels, sizeof(size_t), 1, f);
-    fwrite(&pool->input_height, sizeof(size_t), 1, f);
-    fwrite(&pool->input_width, sizeof(size_t), 1, f);
-    fwrite(&pool->pool_size, sizeof(size_t), 1, f);
-    fwrite(&pool->stride, sizeof(size_t), 1, f);
-
-    return NN_ERR_OK;
-}
-
-ErrorCode load_pool_layer(FILE *f, PoolLayer *pool)
-{
-    // Read pool layer configuration
-    size_t input_channels, input_height, input_width;
-    size_t pool_size, stride;
-
-    fread(&input_channels, sizeof(size_t), 1, f);
-    fread(&input_height, sizeof(size_t), 1, f);
-    fread(&input_width, sizeof(size_t), 1, f);
-    fread(&pool_size, sizeof(size_t), 1, f);
-    fread(&stride, sizeof(size_t), 1, f);
-
-    // Create pool layer with read parameters
-    int err = create_pool_layer(
-        pool, input_channels, input_height, input_width, pool_size, stride
-    );
-
-    if (err != 0)
-    {
-        fprintf(stderr, "network_io.c: Error creating pool layer\n");
-        return NN_ERR_MEMORY;
-    }
-
-    return NN_ERR_OK;
-}
-
 ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
 {
     if (!nn)
@@ -161,20 +123,6 @@ ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
     for (size_t i = 0; i < nn->n_conv_layers; i++)
     {
         ErrorCode err = save_conv_layer(f, &nn->conv_layers[i]);
-        if (err != NN_ERR_OK)
-        {
-            fclose(f);
-            return err;
-        }
-    }
-
-    // Write number of pool layers
-    fwrite(&nn->n_pool_layers, sizeof(size_t), 1, f);
-
-    // Write each pool layer
-    for (size_t i = 0; i < nn->n_pool_layers; i++)
-    {
-        ErrorCode err = save_pool_layer(f, &nn->pool_layers[i]);
         if (err != NN_ERR_OK)
         {
             fclose(f);
@@ -259,52 +207,12 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
                 return err;
             }
         }
-    }
 
-    // Read pool layers
-    fread(&out_nn->n_pool_layers, sizeof(size_t), 1, f);
-
-    if (out_nn->n_pool_layers > 0)
-    {
-        out_nn->pool_layers = malloc(out_nn->n_pool_layers * sizeof(PoolLayer));
-        if (!out_nn->pool_layers)
-        {
-            fclose(f);
-            free_nn(out_nn);
-            return NN_ERR_MEMORY;
-        }
-
-        for (size_t i = 0; i < out_nn->n_pool_layers; i++)
-        {
-            ErrorCode err = load_pool_layer(f, &out_nn->pool_layers[i]);
-            if (err != NN_ERR_OK)
-            {
-                fclose(f);
-                free_nn(out_nn);
-                return err;
-            }
-        }
-    }
-
-    // Calculate flattened size
-    if (out_nn->n_conv_layers > 0)
-    {
-        if (out_nn->n_pool_layers > 0)
-        {
-            PoolLayer *last_pool =
-                &out_nn->pool_layers[out_nn->n_pool_layers - 1];
-            out_nn->flattened_size = last_pool->input_channels *
-                                     last_pool->output_height *
-                                     last_pool->output_width;
-        }
-        else
-        {
-            ConvLayer *last_conv =
-                &out_nn->conv_layers[out_nn->n_conv_layers - 1];
-            out_nn->flattened_size = last_conv->n_filters *
-                                     last_conv->output_height *
-                                     last_conv->output_width;
-        }
+        // Calculate flattened size from last conv layer
+        ConvLayer *last_conv = &out_nn->conv_layers[out_nn->n_conv_layers - 1];
+        out_nn->flattened_size = last_conv->n_filters *
+                                 last_conv->output_height *
+                                 last_conv->output_width;
 
         out_nn->flattened = calloc(out_nn->flattened_size, sizeof(double));
         if (!out_nn->flattened)
