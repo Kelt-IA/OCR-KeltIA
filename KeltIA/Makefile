@@ -8,8 +8,8 @@ GTK_LIBS			:= $(shell pkg-config --libs   gtk+-3.0)
 OPENBLAS_CFLAGS := $(shell pkg-config --cflags openblas 2>/dev/null || true)
 OPENBLAS_LIBS   := $(shell pkg-config --libs openblas   2>/dev/null || echo -lopenblas)
 
-CFLAGS = -Iinclude -Wall -Wextra -Werror -g -O2 $(MAGICK_CFLAGS) $(GTK_CFLAGS)
-LDFLAGS = -lm -fsanitize=address $(MAGICK_LIBS) $(GTK_LIBS) $(OPENBLAS_LIBS)
+CFLAGS = -Iinclude -Wall -Wextra -Werror -fopenmp -g -O2 $(MAGICK_CFLAGS) $(GTK_CFLAGS)
+LDFLAGS = -lm -fsanitize=address -fopenmp $(MAGICK_LIBS) $(GTK_LIBS) $(OPENBLAS_LIBS)
 
 # GTK create memory leaks unrelated to our code
 # So we need separeted linker arguments for window demo
