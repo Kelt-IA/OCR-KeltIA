@@ -1,10 +1,9 @@
 #include "../../include/nn/include_nn.h"
+#include <cblas.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <cblas.h>
 
 void delta_output(
     Layer *last_layer,

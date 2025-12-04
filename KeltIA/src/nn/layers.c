@@ -39,7 +39,7 @@ void set_activation(Layer *layer, ActivationType type)
     }
 }
 
-void forward_layer(Layer *layer, double *input)
+void foward_layer(Layer *layer, double *input)
 {
     // z = W * input + bias
     cblas_dgemv(
