@@ -5,12 +5,15 @@ MAGICK_LIBS   := $(shell pkg-config --libs   MagickWand)
 GTK_CFLAGS 		:= $(shell pkg-config --cflags gtk+-3.0)
 GTK_LIBS			:= $(shell pkg-config --libs   gtk+-3.0)
 
+OPENBLAS_CFLAGS := $(shell pkg-config --cflags openblas 2>/dev/null || true)
+OPENBLAS_LIBS   := $(shell pkg-config --libs openblas   2>/dev/null || echo -lopenblas)
+
 CFLAGS = -Iinclude -Wall -Wextra -Werror -g -O2 $(MAGICK_CFLAGS) $(GTK_CFLAGS)
-LDFLAGS = -lm -fsanitize=address $(MAGICK_LIBS) $(GTK_LIBS) -lopenblas
+LDFLAGS = -lm -fsanitize=address $(MAGICK_LIBS) $(GTK_LIBS) $(OPENBLAS_LIBS)
 
 # GTK create memory leaks unrelated to our code
 # So we need separeted linker arguments for window demo
-WINDOW_LDFLAGS = -lm $(MAGICK_LIBS) $(GTK_LIBS)
+WINDOW_LDFLAGS = -lm $(MAGICK_LIBS) $(GTK_LIBS) $(OPENBLAS_LIBS)
 
 SRC_DIR := src
 BUILD_DIR := build
@@ -59,6 +62,15 @@ $(WINDOW_OBJ): $(SRC_DIR)/window/window.c | $(BUILD_DIR)
 $(BIN_DIR)/window: $(BINS_DIR)/window.c $(OBJS) $(WINDOW_OBJ) $(RESOURCE_OBJ) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< $(OBJS) $(WINDOW_OBJ) $(RESOURCE_OBJ) -o $@ $(WINDOW_LDFLAGS)
 
+# Special compilation rules for NN files with CBLAS
+$(BUILD_DIR)/nn/layers.o: $(SRC_DIR)/nn/layers.c | $(BUILD_DIR)/nn
+	@mkdir -p $(dir $@)
+	$(CC) -Iinclude -Wall -Wextra -Werror -g $(OPENBLAS_CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/nn/back-propagation.o: $(SRC_DIR)/nn/back-propagation.c | $(BUILD_DIR)/nn
+	@mkdir -p $(dir $@)
+	$(CC) -Iinclude -Wall -Wextra -Werror -g $(OPENBLAS_CFLAGS) -c $< -o $@
+
 # Generic pattern rule
 $(BIN_DIR)/%: $(BINS_DIR)/%.c $(OBJS) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< $(OBJS) -o $@ $(LDFLAGS)
@@ -69,8 +81,8 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Create necessary folders
-$(BUILD_DIR):
-	@mkdir -p $(BUILD_DIR)
+$(BUILD_DIR)/nn:
+	@mkdir -p $(BUILD_DIR)/nn
 
 $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
