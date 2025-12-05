@@ -12,8 +12,8 @@ typedef struct
 
 typedef struct
 {
-    double **inputs;
-    double **targets;
+    double **inputs;   //  [ [1.0, 0.0, ...], [], []     ]
+    double **targets;  //  [ [1], [9], [8], ... ]
     int num_samples;
     size_t input_size;
     size_t output_size;

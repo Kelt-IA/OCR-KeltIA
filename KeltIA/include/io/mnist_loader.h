@@ -7,8 +7,8 @@
 
 typedef struct
 {
-    uint8_t **images;  // Array of images (each 28x28)
-    uint8_t *labels;   // Array of labels (0-9)
+    uint8_t **images;  // Array of images (p.e. each 28x28)
+    uint8_t *labels;   // Array of labels
     size_t num_images;
 } MNISTData;
 
