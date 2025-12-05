@@ -92,6 +92,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    int const OUTPUTS = 26;  // letters unified dataset
     NeuronalNetwork nn;
 
     if (!model_path)
@@ -109,9 +110,20 @@ int main(int argc, char *argv[])
 
         ConvLayer conv_configs[2];
 
+        int NUM_INPUTS = 1;
+        int HW_INPUT = 28;
+
+        int NUM_FILTERS = 8;
+        int HW_OUTPUT = 5;
+
+        int STRIDE = 1;
+        int PADDING = 0;
+
         // Conv1: 1x28x28 -> 8 filters 5x5 -> 8x24x24
-        int err1 =
-            create_conv_layer(&conv_configs[0], 1, 28, 28, 8, 5, 5, 1, 0);
+        int err1 = create_conv_layer(
+            &conv_configs[0], NUM_INPUTS, HW_INPUT, HW_INPUT, NUM_FILTERS,
+            HW_OUTPUT, HW_OUTPUT, STRIDE, PADDING
+        );
         if (err1 != 0)
         {
             fprintf(stderr, "Error creating conv layer 1\n");
@@ -122,9 +134,21 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
+        NUM_INPUTS = 8;
+        HW_INPUT = 12;
+
+        NUM_FILTERS = 16;
+        HW_OUTPUT = 3;
+
+        STRIDE = 1;
+        PADDING = 0;
+
         // Conv2: 8x12x12 -> 16 filters 3x3 -> 16x10x10
-        int err2 =
-            create_conv_layer(&conv_configs[1], 8, 12, 12, 16, 3, 3, 1, 0);
+        int err2 = create_conv_layer(
+            &conv_configs[1], NUM_INPUTS, HW_INPUT, HW_INPUT, NUM_FILTERS,
+            HW_OUTPUT, HW_OUTPUT, STRIDE, PADDING
+        );
+
         if (err2 != 0)
         {
             fprintf(stderr, "Error creating conv layer 2\n");
@@ -136,7 +160,7 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
-        size_t dense_neurons[] = {128, 26};  // 26 for 26 letters
+        size_t dense_neurons[] = {128, OUTPUTS};  // 26 for 26 letters
         ActivationType activations[] = {
             ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID
         };
@@ -165,7 +189,10 @@ int main(int argc, char *argv[])
         printf("  Pool2: 16x10x10 -> 2x2 pool -> 16x5x5\n");
         printf("  Flatten: %zu (16*5*5 = 400)\n", nn.flattened_size);
         printf("  Dense1: %zu -> 128 (Leaky ReLU)\n", nn.flattened_size);
-        printf("  Dense2: 128 -> 26 (Sigmoid)\n");
+        printf(
+            "  Dense2: %ld -> %ld (Sigmoid)\n", dense_neurons[0],
+            dense_neurons[1]
+        );
     }
     else
     {
