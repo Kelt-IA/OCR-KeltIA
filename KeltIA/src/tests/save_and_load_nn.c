@@ -533,3 +533,269 @@ int test_write_and_load(int verbose)
 
     return equal;
 }
+
+int test_cnn_save_load_stride_padding(int verbose)
+{
+    if (verbose)
+        printf(
+            "\n=== Testing CNN save/load with different stride/padding ===\n"
+        );
+
+    srand(42);
+    int all_passed = 1;
+
+    // Test case 1: stride=2, padding=0
+    {
+        if (verbose) printf("  Test 1: stride=2, padding=0... ");
+
+        ConvLayer conv_configs[1];
+        create_conv_layer(
+            &conv_configs[0], 1, 10, 10, 4, 3, 3, 2, 0
+        );  // stride=2
+
+        // Randomize
+        for (size_t i = 0; i < 4 * 1 * 3 * 3; i++)
+            conv_configs[0].kernels[i] =
+                ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        for (size_t i = 0; i < 4; i++)
+            conv_configs[0].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+
+        size_t dense_neurons[] = {16, 10};
+        ActivationType activations[] = {
+            ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID
+        };
+
+        NeuronalNetwork cnn;
+        create_cnn(1, conv_configs, 2, dense_neurons, activations, &cnn);
+
+        ErrorCode err = save_nn("test_cnn_stride2.nn", &cnn);
+        if (err != NN_ERR_OK)
+        {
+            if (verbose) printf("❌ FAIL (save error)\n");
+            free_nn(&cnn);
+            all_passed = 0;
+        }
+        else
+        {
+            NeuronalNetwork loaded_cnn;
+            err = load_nn("test_cnn_stride2.nn", &loaded_cnn);
+
+            if (err != NN_ERR_OK || loaded_cnn.conv_layers[0].stride != 2)
+            {
+                if (verbose) printf("❌ FAIL (stride mismatch)\n");
+                all_passed = 0;
+            }
+            else if (!compare_cnn(&cnn, &loaded_cnn, 0))
+            {
+                if (verbose) printf("❌ FAIL (data mismatch)\n");
+                all_passed = 0;
+            }
+            else
+            {
+                if (verbose) printf("✓ PASS\n");
+            }
+
+            free_nn(&loaded_cnn);
+            remove("test_cnn_stride2.nn");
+        }
+
+        free_nn(&cnn);
+    }
+
+    // Test case 2: stride=1, padding=1
+    {
+        if (verbose) printf("  Test 2: stride=1, padding=1... ");
+
+        ConvLayer conv_configs[1];
+        create_conv_layer(
+            &conv_configs[0], 1, 8, 8, 3, 3, 3, 1, 1
+        );  // padding=1
+
+        // Randomize
+        for (size_t i = 0; i < 3 * 1 * 3 * 3; i++)
+            conv_configs[0].kernels[i] =
+                ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        for (size_t i = 0; i < 3; i++)
+            conv_configs[0].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+
+        size_t dense_neurons[] = {32, 10};
+        ActivationType activations[] = {
+            ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID
+        };
+
+        NeuronalNetwork cnn;
+        create_cnn(1, conv_configs, 2, dense_neurons, activations, &cnn);
+
+        ErrorCode err = save_nn("test_cnn_pad1.nn", &cnn);
+        if (err != NN_ERR_OK)
+        {
+            if (verbose) printf("❌ FAIL (save error)\n");
+            free_nn(&cnn);
+            all_passed = 0;
+        }
+        else
+        {
+            NeuronalNetwork loaded_cnn;
+            err = load_nn("test_cnn_pad1.nn", &loaded_cnn);
+
+            if (err != NN_ERR_OK || loaded_cnn.conv_layers[0].padding != 1)
+            {
+                if (verbose) printf("❌ FAIL (padding mismatch)\n");
+                all_passed = 0;
+            }
+            else if (!compare_cnn(&cnn, &loaded_cnn, 0))
+            {
+                if (verbose) printf("❌ FAIL (data mismatch)\n");
+                all_passed = 0;
+            }
+            else
+            {
+                if (verbose) printf("✓ PASS\n");
+            }
+
+            free_nn(&loaded_cnn);
+            remove("test_cnn_pad1.nn");
+        }
+
+        free_nn(&cnn);
+    }
+
+    // Test case 3: stride=2, padding=2
+    {
+        if (verbose) printf("  Test 3: stride=2, padding=2... ");
+
+        ConvLayer conv_configs[1];
+        create_conv_layer(
+            &conv_configs[0], 1, 12, 12, 8, 5, 5, 2, 2
+        );  // stride=2, padding=2
+
+        // Randomize
+        for (size_t i = 0; i < 8 * 1 * 5 * 5; i++)
+            conv_configs[0].kernels[i] =
+                ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        for (size_t i = 0; i < 8; i++)
+            conv_configs[0].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+
+        size_t dense_neurons[] = {64, 10};
+        ActivationType activations[] = {
+            ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID
+        };
+
+        NeuronalNetwork cnn;
+        create_cnn(1, conv_configs, 2, dense_neurons, activations, &cnn);
+
+        ErrorCode err = save_nn("test_cnn_stride_pad.nn", &cnn);
+        if (err != NN_ERR_OK)
+        {
+            if (verbose) printf("❌ FAIL (save error)\n");
+            free_nn(&cnn);
+            all_passed = 0;
+        }
+        else
+        {
+            NeuronalNetwork loaded_cnn;
+            err = load_nn("test_cnn_stride_pad.nn", &loaded_cnn);
+
+            if (err != NN_ERR_OK || loaded_cnn.conv_layers[0].stride != 2 ||
+                loaded_cnn.conv_layers[0].padding != 2)
+            {
+                if (verbose) printf("❌ FAIL (stride/padding mismatch)\n");
+                all_passed = 0;
+            }
+            else if (!compare_cnn(&cnn, &loaded_cnn, 0))
+            {
+                if (verbose) printf("❌ FAIL (data mismatch)\n");
+                all_passed = 0;
+            }
+            else
+            {
+                if (verbose) printf("✓ PASS\n");
+            }
+
+            free_nn(&loaded_cnn);
+            remove("test_cnn_stride_pad.nn");
+        }
+
+        free_nn(&cnn);
+    }
+
+    // Test case 4: Multiple conv layers with different configs
+    {
+        if (verbose) printf("  Test 4: Multiple conv layers... ");
+
+        ConvLayer conv_configs[2];
+        create_conv_layer(
+            &conv_configs[0], 1, 16, 16, 8, 3, 3, 1, 1
+        );  // stride=1, pad=1
+        create_conv_layer(
+            &conv_configs[1], 8, 16, 16, 16, 5, 5, 2, 0
+        );  // stride=2, pad=0
+
+        // Randomize both layers
+        for (size_t i = 0; i < 8 * 1 * 3 * 3; i++)
+            conv_configs[0].kernels[i] =
+                ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        for (size_t i = 0; i < 8; i++)
+            conv_configs[0].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+
+        for (size_t i = 0; i < 16 * 8 * 5 * 5; i++)
+            conv_configs[1].kernels[i] =
+                ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        for (size_t i = 0; i < 16; i++)
+            conv_configs[1].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+
+        size_t dense_neurons[] = {32, 10};
+        ActivationType activations[] = {
+            ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID
+        };
+
+        NeuronalNetwork cnn;
+        create_cnn(2, conv_configs, 2, dense_neurons, activations, &cnn);
+
+        ErrorCode err = save_nn("test_cnn_multi.nn", &cnn);
+        if (err != NN_ERR_OK)
+        {
+            if (verbose) printf("❌ FAIL (save error)\n");
+            free_nn(&cnn);
+            all_passed = 0;
+        }
+        else
+        {
+            NeuronalNetwork loaded_cnn;
+            err = load_nn("test_cnn_multi.nn", &loaded_cnn);
+
+            if (err != NN_ERR_OK || loaded_cnn.conv_layers[0].stride != 1 ||
+                loaded_cnn.conv_layers[0].padding != 1 ||
+                loaded_cnn.conv_layers[1].stride != 2 ||
+                loaded_cnn.conv_layers[1].padding != 0)
+            {
+                if (verbose) printf("❌ FAIL (config mismatch)\n");
+                all_passed = 0;
+            }
+            else if (!compare_cnn(&cnn, &loaded_cnn, 0))
+            {
+                if (verbose) printf("❌ FAIL (data mismatch)\n");
+                all_passed = 0;
+            }
+            else
+            {
+                if (verbose) printf("✓ PASS\n");
+            }
+
+            free_nn(&loaded_cnn);
+            remove("test_cnn_multi.nn");
+        }
+
+        free_nn(&cnn);
+    }
+
+    if (verbose)
+    {
+        if (all_passed)
+            printf("✓ All stride/padding tests PASSED\n");
+        else
+            printf("❌ Some stride/padding tests FAILED\n");
+    }
+
+    return all_passed;
+}
