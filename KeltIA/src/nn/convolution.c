@@ -1,4 +1,4 @@
-// convolution.c - VERSIÓN DIRECTA (sin im2col, sin CBLAS)
+// convolution.c
 #include "../../include/nn/include_nn.h"
 #include <math.h>
 #include <stdio.h>

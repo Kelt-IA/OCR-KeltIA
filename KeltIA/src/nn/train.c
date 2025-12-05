@@ -1,6 +1,5 @@
 // train.c - SGD PURO (batch_size = 1)
 #include "../../include/nn/include_nn.h"
-#include <cblas.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
