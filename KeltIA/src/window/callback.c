@@ -36,3 +36,9 @@ void on_open_nn() {}
 void on_save() {}
 
 void on_solve() {}
+
+void on_open_training(GtkToggleButton *toggle_button, gpointer user_data)
+{
+    (void)toggle_button;
+    (void)user_data;
+}
