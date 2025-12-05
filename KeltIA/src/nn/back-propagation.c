@@ -1,6 +1,5 @@
 // back-propagation.c
 #include "../../include/nn/include_nn.h"
-#include <cblas.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,10 +32,8 @@ void delta_output(
     for (size_t i = 0; i < last_layer->n_neurons; i++)
     {
         double error = last_layer->output[i] - expected[i];
-
         double deriv =
             last_layer->derivative_fn(last_layer->z[i], last_layer->output[i]);
-
         out_delta[i] = error * deriv;
     }
 }
@@ -49,30 +46,29 @@ void delta_hidden_layer(
     double *out_delta
 )
 {
-    // 1. temp = (W[l+1])^T * δ[l+1]
-    double *temp = (double *)malloc(layer->n_neurons * sizeof(double));
-    if (!temp)
-    {
-        fprintf(stderr, "Error allocating temp for delta_hidden_layer\n");
-        exit(1);
-    }
+    // Compute (W[l+1])^T * δ[l+1]
+    // W_next is [n_neurons_next x n_inputs_next]
+    // We want: W_next^T * delta_next
 
-    cblas_dgemv(
-        CblasRowMajor, CblasTrans, next_layer->n_neurons, layer->n_neurons, 1.0,
-        next_layer->weights, next_layer->n_inputs, next_delta, 1, 0.0, temp, 1
-    );
-
-    // 2. out_delta = temp * f'(z)
     for (size_t i = 0; i < layer->n_neurons; i++)
     {
-        double deriv = layer->derivative_fn(layer->z[i], layer->output[i]);
-        out_delta[i] = temp[i] * deriv;
-    }
+        double sum = 0.0;
 
-    free(temp);
+        // Sum over all neurons in next layer
+        for (size_t j = 0; j < next_layer->n_neurons; j++)
+        {
+            // W_next[j][i] * delta_next[j]
+            sum += next_layer->weights[j * next_layer->n_inputs + i] *
+                   next_delta[j];
+        }
+
+        // Multiply by activation derivative
+        double deriv = layer->derivative_fn(layer->z[i], layer->output[i]);
+        out_delta[i] = sum * deriv;
+    }
 }
 
-// Gradient weights: ∂C/∂W = δ[l] * (a[l-1])^T   (outer product)
+// Gradient weights: ∂C/∂W = δ[l] * (a[l-1])^T (outer product)
 void gradient_weights(
     Layer *actual_layer,
     double *output_previous_layer,
@@ -80,15 +76,19 @@ void gradient_weights(
     double *out_gradient
 )
 {
-    // outer product: grad_w += δ ⊗ a_prev^T
-    cblas_dger(
-        CblasRowMajor, actual_layer->n_neurons,
-        actual_layer->n_inputs,    // M x N
-        1.0,                       // alpha
-        delta_actual_layer, 1,     // vector δ (M)
-        output_previous_layer, 1,  // vector a_prev (N)
-        out_gradient, actual_layer->n_inputs
-    );
+    // Outer product: grad_w += δ ⊗ a_prev^T
+    // delta: [n_neurons x 1]
+    // previous: [n_inputs x 1]
+    // result: [n_neurons x n_inputs]
+
+    for (size_t i = 0; i < actual_layer->n_neurons; i++)
+    {
+        for (size_t j = 0; j < actual_layer->n_inputs; j++)
+        {
+            out_gradient[i * actual_layer->n_inputs + j] +=
+                delta_actual_layer[i] * output_previous_layer[j];
+        }
+    }
 }
 
 void gradient_biases(
@@ -98,7 +98,10 @@ void gradient_biases(
 )
 {
     // grad_b += δ
-    cblas_daxpy(n_neurons, 1.0, delta, 1, out_gradient_biases, 1);
+    for (size_t i = 0; i < n_neurons; i++)
+    {
+        out_gradient_biases[i] += delta[i];
+    }
 }
 
 void update_parameters(
@@ -111,14 +114,16 @@ void update_parameters(
     size_t total_weights = layer->n_neurons * layer->n_inputs;
 
     // weights -= lr * grad_weights
-    cblas_daxpy(
-        total_weights, -learning_rate, grad_weights, 1, layer->weights, 1
-    );
+    for (size_t i = 0; i < total_weights; i++)
+    {
+        layer->weights[i] -= learning_rate * grad_weights[i];
+    }
 
     // biases -= lr * grad_biases
-    cblas_daxpy(
-        layer->n_neurons, -learning_rate, grad_biases, 1, layer->bias, 1
-    );
+    for (size_t i = 0; i < layer->n_neurons; i++)
+    {
+        layer->bias[i] -= learning_rate * grad_biases[i];
+    }
 }
 
 void get_empty_deltas(NeuronalNetwork *nn, double ***out_deltas)
@@ -193,7 +198,6 @@ void get_empty_gradients(
     }
 }
 
-// back-propagation.c - VERSIÓN CORREGIDA (sin double-free)
 void backpropagation(
     NeuronalNetwork *nn,
     double *input,
@@ -268,12 +272,22 @@ void backpropagation(
         if (nn->n_layers > 0)
         {
             // Propagate gradient from first dense layer back to flattened
+            // grad_flattened = W^T * delta[0]
             Layer *first_dense = &nn->layers[0];
-            cblas_dgemv(
-                CblasRowMajor, CblasTrans, first_dense->n_neurons,
-                first_dense->n_inputs, 1.0, first_dense->weights,
-                first_dense->n_inputs, deltas[0], 1, 0.0, grad_flattened, 1
-            );
+
+            for (size_t i = 0; i < first_dense->n_inputs;
+                 i++)  // flattened_size
+            {
+                double sum = 0.0;
+
+                for (size_t j = 0; j < first_dense->n_neurons; j++)
+                {
+                    sum += first_dense->weights[j * first_dense->n_inputs + i] *
+                           deltas[0][j];
+                }
+
+                grad_flattened[i] = sum;
+            }
         }
 
         // Backprop through each conv layer
@@ -316,8 +330,6 @@ void backpropagation(
         }
 
         // Free remaining gradients
-        // current_grad is either NULL (if n_conv_layers == 1) or the last
-        // allocated grad
         if (current_grad != NULL && current_grad != grad_flattened)
         {
             free(current_grad);
