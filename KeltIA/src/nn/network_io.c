@@ -1,4 +1,4 @@
-// network_io.c - SIN POOLING
+// network_io.c - FIXED
 #include "../../include/nn/include_nn.h"
 #include <stdio.h>
 #include <string.h>
@@ -54,21 +54,21 @@ ErrorCode load_conv_layer(FILE *f, ConvLayer *conv)
     size_t n_filters, kernel_height, kernel_width;
     size_t stride, padding;
 
-    if (fread(&input_channels, sizeof(size_t), 1, f) != 0) return NN_ERR_READ;
-    if (fread(&input_height, sizeof(size_t), 1, f) != 0) return NN_ERR_READ;
-    if (fread(&input_width, sizeof(size_t), 1, f) != 0) return NN_ERR_READ;
-    if (fread(&n_filters, sizeof(size_t), 1, f) != 0) return NN_ERR_READ;
-    if (fread(&kernel_height, sizeof(size_t), 1, f) != 0) return NN_ERR_READ;
-    if (fread(&kernel_width, sizeof(size_t), 1, f) != 0) return NN_ERR_READ;
-    if (fread(&stride, sizeof(size_t), 1, f) != 0) return NN_ERR_READ;
-    if (fread(&padding, sizeof(size_t), 1, f) != 0) return NN_ERR_READ;
+    // FIX: fread returns number of items read, should be == 1 for success
+    if (fread(&input_channels, sizeof(size_t), 1, f) != 1) return NN_ERR_READ;
+    if (fread(&input_height, sizeof(size_t), 1, f) != 1) return NN_ERR_READ;
+    if (fread(&input_width, sizeof(size_t), 1, f) != 1) return NN_ERR_READ;
+    if (fread(&n_filters, sizeof(size_t), 1, f) != 1) return NN_ERR_READ;
+    if (fread(&kernel_height, sizeof(size_t), 1, f) != 1) return NN_ERR_READ;
+    if (fread(&kernel_width, sizeof(size_t), 1, f) != 1) return NN_ERR_READ;
+    if (fread(&stride, sizeof(size_t), 1, f) != 1) return NN_ERR_READ;
+    if (fread(&padding, sizeof(size_t), 1, f) != 1) return NN_ERR_READ;
 
     // Create conv layer with read parameters
     int err = create_conv_layer(
         conv, input_channels, input_height, input_width, n_filters,
         kernel_height, kernel_width, stride, padding
     );
-
     if (err != 0)
     {
         fprintf(stderr, "network_io.c: Error creating conv layer\n");
@@ -143,7 +143,6 @@ ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
         size_t count_written = fwrite(
             nn->layers[i].bias, sizeof(double), nn->layers[i].n_neurons, f
         );
-
         if (count_written != nn->layers[i].n_neurons)
         {
             fclose(f);
@@ -155,7 +154,6 @@ ErrorCode save_nn(const char *path, const NeuronalNetwork *nn)
             nn->layers[i].weights, sizeof(double),
             nn->layers[i].n_neurons * nn->layers[i].n_inputs, f
         );
-
         if (count_written != nn->layers[i].n_neurons * nn->layers[i].n_inputs)
         {
             fclose(f);
@@ -174,7 +172,12 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
     if (!f) return NN_ERR_FILE_OPEN;
 
     char magic[MAGIC_SIZE];
-    if (fread(magic, sizeof(char), MAGIC_SIZE, f) != 0) return NN_ERR_READ;
+    // FIX: Check for correct number of bytes read
+    if (fread(magic, sizeof(char), MAGIC_SIZE, f) != MAGIC_SIZE)
+    {
+        fclose(f);
+        return NN_ERR_READ;
+    }
 
     if (memcmp(magic, MAGIC, MAGIC_SIZE) != 0)
     {
@@ -186,8 +189,11 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
     memset(out_nn, 0, sizeof(NeuronalNetwork));
 
     // Read conv layers
-    if (fread(&out_nn->n_conv_layers, sizeof(size_t), 1, f) != 0)
+    if (fread(&out_nn->n_conv_layers, sizeof(size_t), 1, f) != 1)
+    {
+        fclose(f);
         return NN_ERR_READ;
+    }
 
     if (out_nn->n_conv_layers > 0)
     {
@@ -214,7 +220,6 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
         out_nn->flattened_size = last_conv->n_filters *
                                  last_conv->output_height *
                                  last_conv->output_width;
-
         out_nn->flattened = calloc(out_nn->flattened_size, sizeof(double));
         if (!out_nn->flattened)
         {
@@ -225,7 +230,12 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
     }
 
     // Read dense layers
-    if (fread(&out_nn->n_layers, sizeof(size_t), 1, f) != 0) return NN_ERR_READ;
+    if (fread(&out_nn->n_layers, sizeof(size_t), 1, f) != 1)
+    {
+        fclose(f);
+        free_nn(out_nn);
+        return NN_ERR_READ;
+    }
 
     if (out_nn->n_layers > 0)
     {
@@ -242,9 +252,24 @@ ErrorCode load_nn(const char *path, NeuronalNetwork *out_nn)
             size_t n_inputs, neurons;
             int type;
 
-            if (fread(&n_inputs, sizeof(size_t), 1, f) != 0) return NN_ERR_READ;
-            if (fread(&neurons, sizeof(size_t), 1, f) != 0) return NN_ERR_READ;
-            if (fread(&type, sizeof(int), 1, f) != 0) return NN_ERR_READ;
+            if (fread(&n_inputs, sizeof(size_t), 1, f) != 1)
+            {
+                fclose(f);
+                free_nn(out_nn);
+                return NN_ERR_READ;
+            }
+            if (fread(&neurons, sizeof(size_t), 1, f) != 1)
+            {
+                fclose(f);
+                free_nn(out_nn);
+                return NN_ERR_READ;
+            }
+            if (fread(&type, sizeof(int), 1, f) != 1)
+            {
+                fclose(f);
+                free_nn(out_nn);
+                return NN_ERR_READ;
+            }
 
             int err = create_layer(
                 &out_nn->layers[i], n_inputs, neurons, ACTIVATION_LEAKY_RELU
