@@ -6,11 +6,11 @@ GTK_CFLAGS 		:= $(shell pkg-config --cflags gtk+-3.0)
 GTK_LIBS			:= $(shell pkg-config --libs   gtk+-3.0)
 
 CFLAGS = -Iinclude -Wall -Wextra -Werror -g -O2 $(MAGICK_CFLAGS) $(GTK_CFLAGS)
-LDFLAGS = -lm -fsanitize=address $(MAGICK_LIBS) $(GTK_LIBS)
+LDFLAGS = -lm -fsanitize=address $(MAGICK_LIBS) $(GTK_LIBS) $(OPENBLAS_LIBS)
 
 # GTK create memory leaks unrelated to our code
 # So we need separeted linker arguments for window demo
-WINDOW_LDFLAGS = -lm $(MAGICK_LIBS) $(GTK_LIBS)
+WINDOW_LDFLAGS = -lm $(MAGICK_LIBS) $(GTK_LIBS) $(OPENBLAS_LIBS)
 
 SRC_DIR := src
 BUILD_DIR := build
@@ -59,6 +59,15 @@ $(WINDOW_OBJ): $(SRC_DIR)/window/window.c | $(BUILD_DIR)
 $(BIN_DIR)/window: $(BINS_DIR)/window.c $(OBJS) $(WINDOW_OBJ) $(RESOURCE_OBJ) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< $(OBJS) $(WINDOW_OBJ) $(RESOURCE_OBJ) -o $@ $(WINDOW_LDFLAGS)
 
+# Special compilation rules for NN files with CBLAS
+$(BUILD_DIR)/nn/layers.o: $(SRC_DIR)/nn/layers.c | $(BUILD_DIR)/nn
+	@mkdir -p $(dir $@)
+	$(CC) -Iinclude -Wall -Wextra -Werror -g -O2 -c $< -o $@
+
+$(BUILD_DIR)/nn/back-propagation.o: $(SRC_DIR)/nn/back-propagation.c | $(BUILD_DIR)/nn
+	@mkdir -p $(dir $@)
+	$(CC) -Iinclude -Wall -Wextra -Werror -g -O2 -c $< -o $@
+
 # Generic pattern rule
 $(BIN_DIR)/%: $(BINS_DIR)/%.c $(OBJS) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< $(OBJS) -o $@ $(LDFLAGS)
@@ -69,11 +78,15 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Create necessary folders
+$(BIN_DIR):
+	@mkdir -p $(BIN_DIR)
+
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
 
-$(BIN_DIR):
-	@mkdir -p $(BIN_DIR)
+$(BUILD_DIR)/nn:
+	@mkdir -p $(BUILD_DIR)/nn
+
 
 # Execution targets
 test: $(BIN_DIR)/tests

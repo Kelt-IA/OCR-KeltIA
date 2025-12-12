@@ -1,30 +1,23 @@
+#pragma once
+
+#include "accuracy_metrics.h"
 #include "network.h"
+#include <signal.h>
+#include <stddef.h>
 
-typedef struct
-{
-    double **inputs;
-    double **targets;
-    int num_samples;
-    size_t input_size;
-    size_t output_size;
-} Dataset;
+// Global flag for SIGINT handling
+extern volatile sig_atomic_t stop_requested;
 
-void average_gradients(
-    NeuronalNetwork *nn,
-    double **grad_weights,
-    double **grad_biases,
-    double batch_size  // if batch_size != 0 do the average
-);
+// Signal handler
+void global_sigint_handler(int sig);
 
-void reset_gradients(
-    NeuronalNetwork *nn,
-    double **grad_weights,
-    double **grad_biases
-);
-
+// Training function
 void train_nn(
     NeuronalNetwork *nn,
     Dataset *dataset,
     size_t epochs,
-    double batch
+    size_t batch_size
 );
+
+// Dataset cleanup
+void free_dataset(Dataset *dataset);

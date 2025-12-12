@@ -230,6 +230,260 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
     return all_match;
 }
 
+const char *TEST_FILE_CNN = "ressources/simple_cnn.nn";
+
+int compare_conv_layers(
+    const ConvLayer *a,
+    const ConvLayer *b,
+    int verbose,
+    size_t layer_idx
+)
+{
+    int result = 1;
+
+    if (verbose)
+    {
+        printf(COLOR_BLUE "\n--- Conv Layer %zu ---\n" COLOR_RESET, layer_idx);
+        printf(
+            "Config: %zux%zux%zu input, %zu filters, kernel %zux%zu, stride "
+            "%zu, padding %zu\n",
+            a->input_height, a->input_width, a->input_channels, a->n_filters,
+            a->kernel_height, a->kernel_width, a->stride, a->padding
+        );
+    }
+
+    // Compare configuration
+    if (a->input_channels != b->input_channels ||
+        a->input_height != b->input_height ||
+        a->input_width != b->input_width || a->n_filters != b->n_filters ||
+        a->kernel_height != b->kernel_height ||
+        a->kernel_width != b->kernel_width || a->stride != b->stride ||
+        a->padding != b->padding)
+    {
+        if (verbose)
+        {
+            printf(COLOR_RED "✗ Configuration mismatch\n" COLOR_RESET);
+        }
+        return 0;
+    }
+
+    // Compare kernels
+    size_t kernel_size =
+        a->n_filters * a->input_channels * a->kernel_height * a->kernel_width;
+    int kernels_match = 1;
+
+    for (size_t i = 0; i < kernel_size; i++)
+    {
+        if (a->kernels[i] != b->kernels[i])
+        {
+            kernels_match = 0;
+            break;
+        }
+    }
+
+    if (verbose)
+    {
+        printf("\nKernels [%zu total weights]:\n", kernel_size);
+        if (kernels_match) { printf(COLOR_GREEN "  ✓ MATCH\n" COLOR_RESET); }
+        else
+        {
+            printf(COLOR_RED "  ✗ DIFFERENT\n" COLOR_RESET);
+            result = 0;
+        }
+    }
+    else if (!kernels_match) { return 0; }
+
+    // Compare biases
+    int biases_match = 1;
+    for (size_t i = 0; i < a->n_filters; i++)
+    {
+        if (a->bias[i] != b->bias[i])
+        {
+            biases_match = 0;
+            break;
+        }
+    }
+
+    if (verbose)
+    {
+        printf("\nBiases:\n");
+        printf("  A: ");
+        print_double_array_compact(a->bias, a->n_filters);
+        printf("\n");
+        printf("  B: ");
+        print_double_array_compact(b->bias, a->n_filters);
+        printf("\n");
+
+        if (biases_match) { printf(COLOR_GREEN "  ✓ MATCH\n" COLOR_RESET); }
+        else
+        {
+            printf(COLOR_RED "  ✗ DIFFERENT\n" COLOR_RESET);
+            result = 0;
+        }
+    }
+    else if (!biases_match) { return 0; }
+
+    return result;
+}
+
+int compare_cnn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
+{
+    if (verbose)
+    {
+        printf(COLOR_BLUE "\n========================================\n");
+        printf("           CNN Comparison\n");
+        printf("========================================\n" COLOR_RESET);
+        printf(
+            "Conv layers: %zu, Dense layers: %zu\n", a->n_conv_layers,
+            a->n_layers
+        );
+    }
+
+    // Compare structure
+    if (a->n_conv_layers != b->n_conv_layers)
+    {
+        if (verbose)
+        {
+            printf(
+                COLOR_RED "✗ n_conv_layers: %zu vs %zu\n" COLOR_RESET,
+                a->n_conv_layers, b->n_conv_layers
+            );
+        }
+        return 0;
+    }
+
+    if (a->n_layers != b->n_layers)
+    {
+        if (verbose)
+        {
+            printf(
+                COLOR_RED "✗ n_layers: %zu vs %zu\n" COLOR_RESET, a->n_layers,
+                b->n_layers
+            );
+        }
+        return 0;
+    }
+
+    int all_match = 1;
+
+    // Compare conv layers
+    for (size_t i = 0; i < a->n_conv_layers; i++)
+    {
+        if (!compare_conv_layers(
+                &a->conv_layers[i], &b->conv_layers[i], verbose, i
+            ))
+        {
+            all_match = 0;
+            if (!verbose) return 0;
+        }
+    }
+
+    // Compare dense layers
+    for (size_t i = 0; i < a->n_layers; i++)
+    {
+        if (!compare_layers(&a->layers[i], &b->layers[i], verbose, i))
+        {
+            all_match = 0;
+            if (!verbose) return 0;
+        }
+    }
+
+    if (verbose)
+    {
+        printf(
+            COLOR_BLUE
+            "\n========================================\n" COLOR_RESET
+        );
+        if (all_match)
+        {
+            printf(COLOR_GREEN "       ✓ CNNs IDENTICAL\n" COLOR_RESET);
+        }
+        else
+        {
+            printf(COLOR_RED "       ✗ CNNs DIFFERENT\n" COLOR_RESET);
+        }
+        printf(
+            COLOR_BLUE
+            "========================================\n\n" COLOR_RESET
+        );
+    }
+
+    return all_match;
+}
+
+int test_cnn_save_load(int verbose)
+{
+    ConvLayer conv_configs[1];
+    create_conv_layer(&conv_configs[0], 1, 8, 8, 2, 3, 3, 1, 0);
+
+    // Set kernel values
+    for (size_t i = 0; i < 2 * 1 * 3 * 3; i++)
+    {
+        conv_configs[0].kernels[i] = i * 0.1;
+    }
+
+    conv_configs[0].bias[0] = 0.98009;  // Magic numbersssss
+    conv_configs[0].bias[1] = -0.73671;
+
+    // size_t dense_neurons[] = {3};
+    // ActivationType activations[] = {ACTIVATION_SIGMOID};
+
+    // create_cnn(1, conv_configs, 1, dense_neurons, activations, &cnn);
+
+    NeuronalNetwork cnn;
+
+    size_t dense_neurons[] = {128, 10};  // Asegúrate de que esté definido
+    ActivationType activations[] = {ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID};
+
+    create_cnn(
+        1,              // n_conv_layers
+        conv_configs,   // conv configs
+        2,              // n_dense_layers
+        dense_neurons,  // dense neurons array
+        activations,    // activations array
+        &cnn            // output network
+    );
+
+    // Randomize ALL dense layer parameters
+    for (size_t l = 0; l < cnn.n_layers; l++)
+    {
+        // Randomize weights
+        size_t weight_size = cnn.layers[l].n_neurons * cnn.layers[l].n_inputs;
+        for (size_t i = 0; i < weight_size; i++)
+        {
+            cnn.layers[l].weights[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        }
+
+        // Randomize biases (IMPORTANTE - no dejar en 0)
+        for (size_t i = 0; i < cnn.layers[l].n_neurons; i++)
+        {
+            cnn.layers[l].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        }
+    }
+
+    ErrorCode err = save_nn(TEST_FILE_CNN, &cnn);
+    if (err != NN_ERR_OK)
+    {
+        free_nn(&cnn);
+        return 0;
+    }
+
+    NeuronalNetwork loaded_cnn;
+    err = load_nn(TEST_FILE_CNN, &loaded_cnn);
+    if (err != NN_ERR_OK)
+    {
+        free_nn(&cnn);
+        return 0;
+    }
+
+    int equal = compare_cnn(&cnn, &loaded_cnn, verbose);
+
+    free_nn(&cnn);
+    free_nn(&loaded_cnn);
+
+    return equal;
+}
+
 int test_write_nn()
 {
     NeuronalNetwork nn;
@@ -278,4 +532,270 @@ int test_write_and_load(int verbose)
     free_nn(&b);
 
     return equal;
+}
+
+int test_cnn_save_load_stride_padding(int verbose)
+{
+    if (verbose)
+        printf(
+            "\n=== Testing CNN save/load with different stride/padding ===\n"
+        );
+
+    srand(42);
+    int all_passed = 1;
+
+    // Test case 1: stride=2, padding=0
+    {
+        if (verbose) printf("  Test 1: stride=2, padding=0... ");
+
+        ConvLayer conv_configs[1];
+        create_conv_layer(
+            &conv_configs[0], 1, 10, 10, 4, 3, 3, 2, 0
+        );  // stride=2
+
+        // Randomize
+        for (size_t i = 0; i < 4 * 1 * 3 * 3; i++)
+            conv_configs[0].kernels[i] =
+                ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        for (size_t i = 0; i < 4; i++)
+            conv_configs[0].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+
+        size_t dense_neurons[] = {16, 10};
+        ActivationType activations[] = {
+            ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID
+        };
+
+        NeuronalNetwork cnn;
+        create_cnn(1, conv_configs, 2, dense_neurons, activations, &cnn);
+
+        ErrorCode err = save_nn("test_cnn_stride2.nn", &cnn);
+        if (err != NN_ERR_OK)
+        {
+            if (verbose) printf("❌ FAIL (save error)\n");
+            free_nn(&cnn);
+            all_passed = 0;
+        }
+        else
+        {
+            NeuronalNetwork loaded_cnn;
+            err = load_nn("test_cnn_stride2.nn", &loaded_cnn);
+
+            if (err != NN_ERR_OK || loaded_cnn.conv_layers[0].stride != 2)
+            {
+                if (verbose) printf("❌ FAIL (stride mismatch)\n");
+                all_passed = 0;
+            }
+            else if (!compare_cnn(&cnn, &loaded_cnn, 0))
+            {
+                if (verbose) printf("❌ FAIL (data mismatch)\n");
+                all_passed = 0;
+            }
+            else
+            {
+                if (verbose) printf("✓ PASS\n");
+            }
+
+            free_nn(&loaded_cnn);
+            remove("test_cnn_stride2.nn");
+        }
+
+        free_nn(&cnn);
+    }
+
+    // Test case 2: stride=1, padding=1
+    {
+        if (verbose) printf("  Test 2: stride=1, padding=1... ");
+
+        ConvLayer conv_configs[1];
+        create_conv_layer(
+            &conv_configs[0], 1, 8, 8, 3, 3, 3, 1, 1
+        );  // padding=1
+
+        // Randomize
+        for (size_t i = 0; i < 3 * 1 * 3 * 3; i++)
+            conv_configs[0].kernels[i] =
+                ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        for (size_t i = 0; i < 3; i++)
+            conv_configs[0].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+
+        size_t dense_neurons[] = {32, 10};
+        ActivationType activations[] = {
+            ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID
+        };
+
+        NeuronalNetwork cnn;
+        create_cnn(1, conv_configs, 2, dense_neurons, activations, &cnn);
+
+        ErrorCode err = save_nn("test_cnn_pad1.nn", &cnn);
+        if (err != NN_ERR_OK)
+        {
+            if (verbose) printf("❌ FAIL (save error)\n");
+            free_nn(&cnn);
+            all_passed = 0;
+        }
+        else
+        {
+            NeuronalNetwork loaded_cnn;
+            err = load_nn("test_cnn_pad1.nn", &loaded_cnn);
+
+            if (err != NN_ERR_OK || loaded_cnn.conv_layers[0].padding != 1)
+            {
+                if (verbose) printf("❌ FAIL (padding mismatch)\n");
+                all_passed = 0;
+            }
+            else if (!compare_cnn(&cnn, &loaded_cnn, 0))
+            {
+                if (verbose) printf("❌ FAIL (data mismatch)\n");
+                all_passed = 0;
+            }
+            else
+            {
+                if (verbose) printf("✓ PASS\n");
+            }
+
+            free_nn(&loaded_cnn);
+            remove("test_cnn_pad1.nn");
+        }
+
+        free_nn(&cnn);
+    }
+
+    // Test case 3: stride=2, padding=2
+    {
+        if (verbose) printf("  Test 3: stride=2, padding=2... ");
+
+        ConvLayer conv_configs[1];
+        create_conv_layer(
+            &conv_configs[0], 1, 12, 12, 8, 5, 5, 2, 2
+        );  // stride=2, padding=2
+
+        // Randomize
+        for (size_t i = 0; i < 8 * 1 * 5 * 5; i++)
+            conv_configs[0].kernels[i] =
+                ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        for (size_t i = 0; i < 8; i++)
+            conv_configs[0].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+
+        size_t dense_neurons[] = {64, 10};
+        ActivationType activations[] = {
+            ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID
+        };
+
+        NeuronalNetwork cnn;
+        create_cnn(1, conv_configs, 2, dense_neurons, activations, &cnn);
+
+        ErrorCode err = save_nn("test_cnn_stride_pad.nn", &cnn);
+        if (err != NN_ERR_OK)
+        {
+            if (verbose) printf("❌ FAIL (save error)\n");
+            free_nn(&cnn);
+            all_passed = 0;
+        }
+        else
+        {
+            NeuronalNetwork loaded_cnn;
+            err = load_nn("test_cnn_stride_pad.nn", &loaded_cnn);
+
+            if (err != NN_ERR_OK || loaded_cnn.conv_layers[0].stride != 2 ||
+                loaded_cnn.conv_layers[0].padding != 2)
+            {
+                if (verbose) printf("❌ FAIL (stride/padding mismatch)\n");
+                all_passed = 0;
+            }
+            else if (!compare_cnn(&cnn, &loaded_cnn, 0))
+            {
+                if (verbose) printf("❌ FAIL (data mismatch)\n");
+                all_passed = 0;
+            }
+            else
+            {
+                if (verbose) printf("✓ PASS\n");
+            }
+
+            free_nn(&loaded_cnn);
+            remove("test_cnn_stride_pad.nn");
+        }
+
+        free_nn(&cnn);
+    }
+
+    // Test case 4: Multiple conv layers with different configs
+    {
+        if (verbose) printf("  Test 4: Multiple conv layers... ");
+
+        ConvLayer conv_configs[2];
+        create_conv_layer(
+            &conv_configs[0], 1, 16, 16, 8, 3, 3, 1, 1
+        );  // stride=1, pad=1
+        create_conv_layer(
+            &conv_configs[1], 8, 16, 16, 16, 5, 5, 2, 0
+        );  // stride=2, pad=0
+
+        // Randomize both layers
+        for (size_t i = 0; i < 8 * 1 * 3 * 3; i++)
+            conv_configs[0].kernels[i] =
+                ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        for (size_t i = 0; i < 8; i++)
+            conv_configs[0].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+
+        for (size_t i = 0; i < 16 * 8 * 5 * 5; i++)
+            conv_configs[1].kernels[i] =
+                ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        for (size_t i = 0; i < 16; i++)
+            conv_configs[1].bias[i] = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+
+        size_t dense_neurons[] = {32, 10};
+        ActivationType activations[] = {
+            ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID
+        };
+
+        NeuronalNetwork cnn;
+        create_cnn(2, conv_configs, 2, dense_neurons, activations, &cnn);
+
+        ErrorCode err = save_nn("test_cnn_multi.nn", &cnn);
+        if (err != NN_ERR_OK)
+        {
+            if (verbose) printf("❌ FAIL (save error)\n");
+            free_nn(&cnn);
+            all_passed = 0;
+        }
+        else
+        {
+            NeuronalNetwork loaded_cnn;
+            err = load_nn("test_cnn_multi.nn", &loaded_cnn);
+
+            if (err != NN_ERR_OK || loaded_cnn.conv_layers[0].stride != 1 ||
+                loaded_cnn.conv_layers[0].padding != 1 ||
+                loaded_cnn.conv_layers[1].stride != 2 ||
+                loaded_cnn.conv_layers[1].padding != 0)
+            {
+                if (verbose) printf("❌ FAIL (config mismatch)\n");
+                all_passed = 0;
+            }
+            else if (!compare_cnn(&cnn, &loaded_cnn, 0))
+            {
+                if (verbose) printf("❌ FAIL (data mismatch)\n");
+                all_passed = 0;
+            }
+            else
+            {
+                if (verbose) printf("✓ PASS\n");
+            }
+
+            free_nn(&loaded_cnn);
+            remove("test_cnn_multi.nn");
+        }
+
+        free_nn(&cnn);
+    }
+
+    if (verbose)
+    {
+        if (all_passed)
+            printf("✓ All stride/padding tests PASSED\n");
+        else
+            printf("❌ Some stride/padding tests FAILED\n");
+    }
+
+    return all_passed;
 }

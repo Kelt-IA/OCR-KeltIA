@@ -1,23 +1,26 @@
+#pragma once
+
 #include "network.h"
-#include "train.h"
 #include <stddef.h>
 
 typedef struct
 {
-    double mse;         // Mean Squared Error
-    double mae;         // Mean Absolute Error
-    double rmse;        // Root Mean Squared Error
-    double accuracy;    // Accuracy (clasificación)
-    int correct_count;  // Number of correct predictions
+    double accuracy;
+    double mse;
+    int correct_predictions;
 } EvaluationMetrics;
 
-EvaluationMetrics evaluate_network(NeuronalNetwork *nn, Dataset *data);
+typedef struct
+{
+    double **inputs;   //  [ [1.0, 0.0, ...], [], []     ]
+    double **targets;  //  [ [1], [9], [8], ... ]
+    int num_samples;
+    size_t input_size;
+    size_t output_size;
+} Dataset;
 
-void print_evaluation(
-    EvaluationMetrics metrics,
-    int num_samples,
-    const char *dataset_name,
-    int epoch
-);
+// Evaluate network performance
+EvaluationMetrics evaluate_network(NeuronalNetwork *nn, Dataset *dataset);
 
-void print_xnor_nn_predictions(NeuronalNetwork *nn);
+// Log metrics to file
+void log_metrics(const char *filepath, size_t epoch, EvaluationMetrics metrics);

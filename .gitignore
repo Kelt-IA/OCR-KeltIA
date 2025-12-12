@@ -69,3 +69,5 @@ KeltIA/bin/
 \#*.glade\#
 
 */clangd.yaml
+KeltIA/data/
+KeltIA/mnist.sh

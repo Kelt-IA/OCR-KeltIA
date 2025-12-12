@@ -1,3 +1,4 @@
+// back-propagation.c
 #include "../../include/nn/include_nn.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -31,94 +32,60 @@ void delta_output(
     for (size_t i = 0; i < last_layer->n_neurons; i++)
     {
         double error = last_layer->output[i] - expected[i];
-
         double deriv =
             last_layer->derivative_fn(last_layer->z[i], last_layer->output[i]);
-
         out_delta[i] = error * deriv;
     }
 }
 
+// Delta hidden layer: δ[l] = (W[l+1])^T * δ[l+1] * f'(z[l])
 void delta_hidden_layer(
     Layer *layer,
     Layer *next_layer,
     double *next_delta,
-    double *out_delta,
-    size_t out_delta_size
+    double *out_delta
 )
 {
-    if (out_delta_size != layer->n_neurons)
-    {
-        fprintf(
-            stderr,
-            "back-propagation.c: Invalid length of array, actual: %ld, "
-            "expected: %ld\n",
-            out_delta_size, layer->n_neurons
-        );
-        exit(1);
-    }
-
-    if (!out_delta)
-    {
-        fprintf(stderr, "back-propagation.c: Invalid array pointer");
-        exit(1);
-    }
+    // Compute (W[l+1])^T * δ[l+1]
+    // W_next is [n_neurons_next x n_inputs_next]
+    // We want: W_next^T * delta_next
 
     for (size_t i = 0; i < layer->n_neurons; i++)
     {
-        double sum = 0;
+        double sum = 0.0;
+
+        // Sum over all neurons in next layer
         for (size_t j = 0; j < next_layer->n_neurons; j++)
         {
-            sum += WEIGHT(next_layer, j, i) * next_delta[j];
+            // W_next[j][i] * delta_next[j]
+            sum += next_layer->weights[j * next_layer->n_inputs + i] *
+                   next_delta[j];
         }
 
+        // Multiply by activation derivative
         double deriv = layer->derivative_fn(layer->z[i], layer->output[i]);
-
         out_delta[i] = sum * deriv;
     }
 }
 
+// Gradient weights: ∂C/∂W = δ[l] * (a[l-1])^T (outer product)
 void gradient_weights(
     Layer *actual_layer,
     double *output_previous_layer,
     double *delta_actual_layer,
-    double *out_gradient,
-    size_t out_gradient_size
+    double *out_gradient
 )
 {
-    if (out_gradient_size != actual_layer->n_neurons * actual_layer->n_inputs)
-    {
-        fprintf(
-            stderr,
-            "back-propagation.c: Invalid size of array, actual: %ld, expected: "
-            "%ld",
-            out_gradient_size, actual_layer->n_neurons * actual_layer->n_inputs
-        );
-        exit(1);
-    }
-
-    if (!out_gradient)
-    {
-        fprintf(stderr, "back-propagation.c: Invalid pointer provided");
-        exit(1);
-    }
-
-    // exterior product: δ[l] * (a[l-1])^T
-    // the gradients are calculated multipliying the delta of each neuron
-    // with the activations of the previous layer
+    // Outer product: grad_w += δ ⊗ a_prev^T
+    // delta: [n_neurons x 1]
+    // previous: [n_inputs x 1]
+    // result: [n_neurons x n_inputs]
 
     for (size_t i = 0; i < actual_layer->n_neurons; i++)
     {
         for (size_t j = 0; j < actual_layer->n_inputs; j++)
         {
-            // from 2D to 1D
-            int idx = i * actual_layer->n_inputs + j;
-
-            // The gradient of the weight that conects neuron j of
-            // previous_layer with neuron i of actual_layer:
-            // ∂C/∂w[i][j] = δ[i] * preious_a[j]
-
-            out_gradient[idx] +=
+            out_gradient[i * actual_layer->n_inputs + j] +=
                 delta_actual_layer[i] * output_previous_layer[j];
         }
     }
@@ -127,32 +94,14 @@ void gradient_weights(
 void gradient_biases(
     double *delta,
     size_t n_neurons,
-    double *out_gradient_biases,
-    size_t out_gradient_size
+    double *out_gradient_biases
 )
 {
-    if (out_gradient_size != n_neurons)
+    // grad_b += δ
+    for (size_t i = 0; i < n_neurons; i++)
     {
-        fprintf(
-            stderr,
-            "back-propagation.c: Invalid length of array, actual: %ld, "
-            "expected: %ld\n",
-            out_gradient_size, n_neurons
-        );
-        exit(1);
+        out_gradient_biases[i] += delta[i];
     }
-
-    if (!out_gradient_biases)
-    {
-        fprintf(stderr, "back-propagation.c: Invalid pointer provided");
-        exit(1);
-    }
-
-    // the gradient of the biases is delta
-    // ∂C/∂b[l] = δ[l]
-    // memcpy(out_gradient_biases, delta, n_neurons * sizeof(double));
-
-    for (size_t i = 0; i < n_neurons; i++) out_gradient_biases[i] += delta[i];
 }
 
 void update_parameters(
@@ -163,17 +112,18 @@ void update_parameters(
 )
 {
     size_t total_weights = layer->n_neurons * layer->n_inputs;
-    for (size_t idx = 0; idx < total_weights; idx++)
+
+    // weights -= lr * grad_weights
+    for (size_t i = 0; i < total_weights; i++)
     {
-        layer->weights[idx] -= learning_rate * grad_weights[idx];
+        layer->weights[i] -= learning_rate * grad_weights[i];
     }
 
-    for (size_t idx = 0; idx < layer->n_neurons; idx++)
+    // biases -= lr * grad_biases
+    for (size_t i = 0; i < layer->n_neurons; i++)
     {
-        layer->bias[idx] -= learning_rate * grad_biases[idx];
+        layer->bias[i] -= learning_rate * grad_biases[i];
     }
-
-    return;
 }
 
 void get_empty_deltas(NeuronalNetwork *nn, double ***out_deltas)
@@ -254,56 +204,137 @@ void backpropagation(
     double *expected_output,
     double **deltas,
     double **grad_weights,
-    double **grad_biases
+    double **grad_biases,
+    double **conv_grad_kernels,
+    double **conv_grad_bias
 )
 {
     if (!deltas)
     {
-        fprintf(stderr, "back-propagation.c: Invalid pointer provided");
+        fprintf(stderr, "back-propagation.c: Invalid pointer provided\n");
         exit(1);
     }
 
+    // Forward pass
     compute_nn(nn, input, NULL);
 
-    Layer *last_layer = &nn->layers[nn->n_layers - 1];
-    delta_output(
-        last_layer, expected_output, deltas[nn->n_layers - 1],
-        last_layer->n_neurons
-    );
-
-    for (int l = (int)nn->n_layers - 2; l >= 0; l--)
+    // Backprop through dense layers
+    if (nn->n_layers > 0)
     {
-        Layer *actual_layer = &nn->layers[l];
-        Layer *next_layer = &nn->layers[l + 1];
-        double *delta_next = deltas[l + 1];
-
-        delta_hidden_layer(
-            actual_layer, next_layer, delta_next, deltas[l],
-            actual_layer->n_neurons
+        Layer *last_layer = &nn->layers[nn->n_layers - 1];
+        delta_output(
+            last_layer, expected_output, deltas[nn->n_layers - 1],
+            last_layer->n_neurons
         );
+
+        for (int l = (int)nn->n_layers - 2; l >= 0; l--)
+        {
+            Layer *actual_layer = &nn->layers[l];
+            Layer *next_layer = &nn->layers[l + 1];
+            double *delta_next = deltas[l + 1];
+
+            delta_hidden_layer(actual_layer, next_layer, delta_next, deltas[l]);
+        }
+
+        // Compute gradients for dense layers
+        for (size_t l = 0; l < nn->n_layers; l++)
+        {
+            Layer *actual_layer = &nn->layers[l];
+            double *previous_activation;
+
+            if (l == 0)
+            {
+                previous_activation =
+                    (nn->n_conv_layers > 0) ? nn->flattened : input;
+            }
+            else
+            {
+                previous_activation = nn->layers[l - 1].output;
+            }
+
+            gradient_weights(
+                actual_layer, previous_activation, deltas[l], grad_weights[l]
+            );
+            gradient_biases(deltas[l], actual_layer->n_neurons, grad_biases[l]);
+        }
     }
 
-    for (size_t l = 0; l < nn->n_layers; l++)
+    // Backprop through conv layers
+    if (nn->n_conv_layers > 0 && conv_grad_kernels && conv_grad_bias)
     {
-        Layer *actual_layer = &nn->layers[l];
-        double *previous_activation;
+        double *grad_flattened = calloc(nn->flattened_size, sizeof(double));
+        if (!grad_flattened)
+        {
+            fprintf(stderr, "Error allocating grad_flattened\n");
+            exit(1);
+        }
 
-        if (l == 0)
-            previous_activation = input;
-        else
-            previous_activation = nn->layers[l - 1].output;
+        if (nn->n_layers > 0)
+        {
+            // Propagate gradient from first dense layer back to flattened
+            // grad_flattened = W^T * delta[0]
+            Layer *first_dense = &nn->layers[0];
 
-        size_t size_grad_weights =
-            actual_layer->n_neurons * actual_layer->n_inputs;
+            for (size_t i = 0; i < first_dense->n_inputs;
+                 i++)  // flattened_size
+            {
+                double sum = 0.0;
 
-        gradient_weights(
-            actual_layer, previous_activation, deltas[l], grad_weights[l],
-            size_grad_weights
-        );
+                for (size_t j = 0; j < first_dense->n_neurons; j++)
+                {
+                    sum += first_dense->weights[j * first_dense->n_inputs + i] *
+                           deltas[0][j];
+                }
 
-        gradient_biases(
-            deltas[l], actual_layer->n_neurons, grad_biases[l],
-            actual_layer->n_neurons
-        );
+                grad_flattened[i] = sum;
+            }
+        }
+
+        // Backprop through each conv layer
+        double *current_grad = grad_flattened;
+
+        for (int i = (int)nn->n_conv_layers - 1; i >= 0; i--)
+        {
+            double *next_grad = NULL;
+
+            // Allocate gradient for previous layer (if exists)
+            if (i > 0)
+            {
+                ConvLayer *prev_conv = &nn->conv_layers[i - 1];
+                size_t prev_output_size = prev_conv->n_filters *
+                                          prev_conv->output_height *
+                                          prev_conv->output_width;
+                next_grad = calloc(prev_output_size, sizeof(double));
+                if (!next_grad)
+                {
+                    fprintf(stderr, "Error allocating next_grad\n");
+                    // Cleanup
+                    if (current_grad != grad_flattened) free(current_grad);
+                    free(grad_flattened);
+                    exit(1);
+                }
+            }
+
+            // Compute gradients for this conv layer
+            backward_conv_layer(
+                &nn->conv_layers[i], current_grad,
+                next_grad,  // Can be NULL for first conv layer
+                conv_grad_kernels[i], conv_grad_bias[i]
+            );
+
+            // Free current gradient if it's not the original grad_flattened
+            if (current_grad != grad_flattened) { free(current_grad); }
+
+            // Move to next iteration
+            current_grad = next_grad;
+        }
+
+        // Free remaining gradients
+        if (current_grad != NULL && current_grad != grad_flattened)
+        {
+            free(current_grad);
+        }
+
+        free(grad_flattened);
     }
 }
