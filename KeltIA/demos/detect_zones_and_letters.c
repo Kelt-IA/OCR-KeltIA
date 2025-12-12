@@ -1,6 +1,32 @@
 #include "../include/detect_zones/detect_char.h"
 #include "../include/detect_zones/detect_zones.h"
 #include <err.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+/**
+ * Sauvegarde une lettre définie par un CharBBox dans un fichier bitmap.
+ *
+ * @param wand   L'image source complète.
+ * @param bbox   La bounding box du caractère.
+ * @param path   Le chemin du fichier de sortie (ex: "letter.bmp").
+ *
+ * @return 0 si OK, -1 si erreur.
+ */
+int save_charbbox_as_bitmap(MagickWand *wand, CharBBox bbox, const char *path)
+{
+    // Extraire la zone correspondant au caractère
+    MagickWand *letter = extract_zone(wand, bbox.x, bbox.y, bbox.w, bbox.h);
+
+    if (letter == NULL) return -1;
+
+    // Sauvegarde en BMP
+    MagickBooleanType status = MagickWriteImage(letter, path);
+
+    DestroyMagickWand(letter);
+
+    return (status == MagickTrue) ? 0 : -1;
+}
 
 int main(int argc, char *argv[])
 {
@@ -15,6 +41,7 @@ int main(int argc, char *argv[])
 
     MagickWandGenesis();
     MagickWand *wand = NewMagickWand();
+    DrawingWand *draw = NewDrawingWand();
 
     if (!MagickReadImage(wand, input_path))
     {
@@ -39,16 +66,6 @@ int main(int argc, char *argv[])
         ez.words.y_max - ez.words.y_min, &words_chars
     );
 
-    DrawingWand *draw = NewDrawingWand();
-
-    // draw letters
-    DrawLetterBoundries(wand, draw, grid_characters, grid_chars, "blue");
-    DrawLetterBoundries(wand, draw, words_characters, words_chars, "blue");
-
-    // draw zones
-    DrawZoneBoundries(draw, &ez.grid, "red");
-    DrawZoneBoundries(draw, &ez.words, "green");
-
     printf(
         "Grid : x1:%i y1:%i x2:%i y2:%i\n", ez.grid.x_min, ez.grid.y_min,
         ez.grid.x_max, ez.grid.y_max
@@ -58,10 +75,76 @@ int main(int argc, char *argv[])
         ez.words.x_max, ez.words.y_max
     );
 
+    // MagickDrawImage(wand, draw);
+
+    // Create output directory for extracted characters
+    const char *output_dir = "extracted_characters";
+    mkdir(output_dir, 0755);
+
+    // Save all characters from grid
+    printf("\n=== Saving extracted characters ===\n");
+    printf("Grid characters (%d found):\n", grid_chars);
+    for (int i = 0; i < grid_chars; i++)
+    {
+        char filepath[512];
+        snprintf(
+            filepath, sizeof(filepath), "%s/grid_char_%03d.bmp", output_dir, i
+        );
+
+        int result =
+            save_charbbox_as_bitmap(wand, grid_characters[i], filepath);
+        if (result == 0)
+        {
+            printf(
+                "  ✓ [%d] %s (pos: %d,%d size: %dx%d)\n", i, filepath,
+                grid_characters[i].x, grid_characters[i].y,
+                grid_characters[i].w, grid_characters[i].h
+            );
+        }
+        else
+        {
+            printf("  ✗ [%d] Failed to save %s\n", i, filepath);
+        }
+    }
+
+    // Save all characters from wordlist
+    printf("\nWordlist characters (%d found):\n", words_chars);
+    for (int i = 0; i < words_chars; i++)
+    {
+        char filepath[512];
+        snprintf(
+            filepath, sizeof(filepath), "%s/word_char_%03d.bmp", output_dir, i
+        );
+
+        int result =
+            save_charbbox_as_bitmap(wand, words_characters[i], filepath);
+        if (result == 0)
+        {
+            printf(
+                "  ✓ [%d] %s (pos: %d,%d size: %dx%d)\n", i, filepath,
+                words_characters[i].x, words_characters[i].y,
+                words_characters[i].w, words_characters[i].h
+            );
+        }
+        else
+        {
+            printf("  ✗ [%d] Failed to save %s\n", i, filepath);
+        }
+    }
+
+    // draw letters
+    DrawLetterBoundries(wand, draw, grid_characters, grid_chars, "blue");
+    DrawLetterBoundries(wand, draw, words_characters, words_chars, "blue");
+
+    // draw zones
+    DrawZoneBoundries(draw, &ez.grid, "red");
+    DrawZoneBoundries(draw, &ez.words, "green");
+
     free(grid_characters);
     free(words_characters);
 
-    MagickDrawImage(wand, draw);
+    printf("=== Extraction complete ===\n");
+    printf("All characters saved to: %s/\n\n", output_dir);
 
     MagickWriteImage(wand, output_path);
     DestroyDrawingWand(draw);
