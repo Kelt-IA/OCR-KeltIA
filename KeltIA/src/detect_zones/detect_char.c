@@ -190,3 +190,50 @@ void DrawLetterBoundries(
     DestroyPixelWand(fill_color);
     MagickDrawImage(wand, draw);
 }
+
+int save_charbbox_as_bitmap(MagickWand *wand, CharBBox bbox, const char *path)
+{
+    const int TARGET_SIZE = 28;
+
+    // extract zone of char
+    MagickWand *letter = extract_zone(wand, bbox.x, bbox.y, bbox.w, bbox.h);
+    if (letter == NULL) return -1;
+
+    // get dimensions
+    size_t orig_width = MagickGetImageWidth(letter);
+    size_t orig_height = MagickGetImageHeight(letter);
+
+    // calculate scaling
+    double scale_w = (double)TARGET_SIZE / orig_width;
+    double scale_h = (double)TARGET_SIZE / orig_height;
+    double scale = fmin(scale_w, scale_h);  // Usar el menor para que quepa
+
+    size_t new_width = (size_t)(orig_width * scale);
+    size_t new_height = (size_t)(orig_height * scale);
+
+    // Redimention only if necesary
+    if (new_width != orig_width || new_height != orig_height)
+    {
+        // MagickResizeImage con LanczosFilter para mejor calidad
+        MagickResizeImage(letter, new_width, new_height, LanczosFilter);
+    }
+
+    // background white
+    PixelWand *bg_color = NewPixelWand();
+    PixelSetColor(bg_color, "white");
+    MagickSetImageBackgroundColor(letter, bg_color);
+    DestroyPixelWand(bg_color);
+
+    MagickSetGravity(letter, CenterGravity);
+
+    ssize_t offset_x = (TARGET_SIZE - new_width) / 2;
+    ssize_t offset_y = (TARGET_SIZE - new_height) / 2;
+
+    MagickExtentImage(letter, TARGET_SIZE, TARGET_SIZE, -offset_x, -offset_y);
+
+    MagickBooleanType status = MagickWriteImage(letter, path);
+
+    DestroyMagickWand(letter);
+
+    return (status == MagickTrue) ? 0 : -1;
+}
