@@ -190,3 +190,56 @@ void DrawLetterBoundries(
     DestroyPixelWand(fill_color);
     MagickDrawImage(wand, draw);
 }
+
+int save_charbbox_as_bitmap(MagickWand *wand, CharBBox bbox, const char *path)
+{
+    const int TARGET_SIZE = 28;
+
+    // Extraer la zona correspondiente al carácter
+    MagickWand *letter = extract_zone(wand, bbox.x, bbox.y, bbox.w, bbox.h);
+    if (letter == NULL) return -1;
+
+    // Obtener dimensiones actuales
+    size_t orig_width = MagickGetImageWidth(letter);
+    size_t orig_height = MagickGetImageHeight(letter);
+
+    // Calcular el factor de escala para mantener aspect ratio
+    // La imagen debe caber dentro de 28x28
+    double scale_w = (double)TARGET_SIZE / orig_width;
+    double scale_h = (double)TARGET_SIZE / orig_height;
+    double scale = fmin(scale_w, scale_h);  // Usar el menor para que quepa
+
+    // Calcular nuevas dimensiones manteniendo aspect ratio
+    size_t new_width = (size_t)(orig_width * scale);
+    size_t new_height = (size_t)(orig_height * scale);
+
+    // Redimensionar solo si es necesario
+    if (new_width != orig_width || new_height != orig_height)
+    {
+        // MagickResizeImage con LanczosFilter para mejor calidad
+        MagickResizeImage(letter, new_width, new_height, LanczosFilter);
+    }
+
+    // Configurar el color de fondo blanco para el padding
+    PixelWand *bg_color = NewPixelWand();
+    PixelSetColor(bg_color, "white");
+    MagickSetImageBackgroundColor(letter, bg_color);
+    DestroyPixelWand(bg_color);
+
+    // Configurar gravedad para centrar la imagen
+    MagickSetGravity(letter, CenterGravity);
+
+    // Calcular offset para centrar la imagen
+    ssize_t offset_x = (TARGET_SIZE - new_width) / 2;
+    ssize_t offset_y = (TARGET_SIZE - new_height) / 2;
+
+    // Extender la imagen a 28x28 con padding blanco centrado
+    MagickExtentImage(letter, TARGET_SIZE, TARGET_SIZE, -offset_x, -offset_y);
+
+    // Guardar en formato BMP
+    MagickBooleanType status = MagickWriteImage(letter, path);
+
+    DestroyMagickWand(letter);
+
+    return (status == MagickTrue) ? 0 : -1;
+}

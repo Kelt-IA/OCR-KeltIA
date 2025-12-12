@@ -48,3 +48,6 @@ void DrawLetterBoundries(
     int grid_chars,
     char *color
 );
+
+// saves a letter boundry as a bitmap 28*28
+int save_charbbox_as_bitmap(MagickWand *wand, CharBBox bbox, const char *path);

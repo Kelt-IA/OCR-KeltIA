@@ -4,30 +4,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-/**
- * Sauvegarde une lettre définie par un CharBBox dans un fichier bitmap.
- *
- * @param wand   L'image source complète.
- * @param bbox   La bounding box du caractère.
- * @param path   Le chemin du fichier de sortie (ex: "letter.bmp").
- *
- * @return 0 si OK, -1 si erreur.
- */
-int save_charbbox_as_bitmap(MagickWand *wand, CharBBox bbox, const char *path)
-{
-    // Extraire la zone correspondant au caractère
-    MagickWand *letter = extract_zone(wand, bbox.x, bbox.y, bbox.w, bbox.h);
-
-    if (letter == NULL) return -1;
-
-    // Sauvegarde en BMP
-    MagickBooleanType status = MagickWriteImage(letter, path);
-
-    DestroyMagickWand(letter);
-
-    return (status == MagickTrue) ? 0 : -1;
-}
-
 int main(int argc, char *argv[])
 {
     if (argc != 3)
@@ -81,6 +57,12 @@ int main(int argc, char *argv[])
     const char *output_dir = "extracted_characters";
     mkdir(output_dir, 0755);
 
+    const char *output_dir_grid = "extracted_characters/grid";
+    mkdir(output_dir_grid, 0755);
+
+    const char *output_dir_list = "extracted_characters/list";
+    mkdir(output_dir_list, 0755);
+
     // Save all characters from grid
     printf("\n=== Saving extracted characters ===\n");
     printf("Grid characters (%d found):\n", grid_chars);
@@ -88,7 +70,8 @@ int main(int argc, char *argv[])
     {
         char filepath[512];
         snprintf(
-            filepath, sizeof(filepath), "%s/grid_char_%03d.bmp", output_dir, i
+            filepath, sizeof(filepath), "%s/grid_char_%03d.bmp",
+            output_dir_grid, i
         );
 
         int result =
@@ -113,7 +96,8 @@ int main(int argc, char *argv[])
     {
         char filepath[512];
         snprintf(
-            filepath, sizeof(filepath), "%s/word_char_%03d.bmp", output_dir, i
+            filepath, sizeof(filepath), "%s/word_char_%03d.bmp",
+            output_dir_list, i
         );
 
         int result =
