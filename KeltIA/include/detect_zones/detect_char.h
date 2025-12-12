@@ -51,3 +51,7 @@ void DrawLetterBoundries(
 
 // saves a letter boundry as a bitmap 28*28
 int save_charbbox_as_bitmap(MagickWand *wand, CharBBox bbox, const char *path);
+
+// split the biggest values from an array of CharBBox and return a new array
+float average_length(CharBBox *array, int length);
+int split_boundingbox(CharBBox *array, int length, CharBBox **result, int *result_length);

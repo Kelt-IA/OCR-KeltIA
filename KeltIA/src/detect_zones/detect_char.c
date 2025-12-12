@@ -237,3 +237,79 @@ int save_charbbox_as_bitmap(MagickWand *wand, CharBBox bbox, const char *path)
 
     return (status == MagickTrue) ? 0 : -1;
 }
+
+
+
+
+
+
+
+
+
+
+float average_length(CharBBox *array, int length)
+{
+    // Calculate the average [width] of an array of CharBBox 
+    float average = 0.0f;
+
+    for (int i = 0; i < length; i++)
+        average += (array[i].w);
+
+    return average / (float)length;
+}
+
+
+int split_boundingbox(CharBBox *array, int length, CharBBox **result, int *result_length)
+{
+    // Returns a new array. Values bigger than 110% * average width are now considered
+    // as two distinct CharBBox.
+    *result = NULL;
+    *result_length = 0;
+
+    float average = average_length(array, length);
+
+    for (int i = 0; i < length; i++)
+    {
+        CharBBox current = array[i];
+        float width = (float)current.w;
+
+        if (width>2*average)
+            continue; // Too big
+
+        if (width < average * 1.1f)
+        {
+            CharBBox *tmp = realloc(*result,(*result_length + 1) * sizeof(CharBBox));
+            if (!tmp)
+                return -1;
+
+            *result = tmp;
+            (*result)[*result_length] = current;
+            (*result_length)++;
+        }
+        else
+        {
+            CharBBox left = {
+                .x = current.x,
+                .y = current.y,
+                .w = current.w / 2,
+                .h = current.h
+            };
+
+            CharBBox right = {
+                .x = current.x + left.w,
+                .y = current.y,
+                .w = current.w - left.w,
+                .h = current.h
+            };
+
+            CharBBox *tmp = realloc(*result,(*result_length + 2) * sizeof(CharBBox));
+            if (!tmp)
+                return -1;
+            *result = tmp;
+            (*result)[*result_length] = left;
+            (*result)[*result_length + 1] = right;
+            *result_length += 2;
+        }
+    }
+    return 0;
+}
