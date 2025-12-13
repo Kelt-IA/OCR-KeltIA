@@ -10,7 +10,7 @@
 #include <string.h>
 #include <time.h>
 
-#define MAX_EPOCHS 50
+#define MAX_EPOCHS 10000
 
 int main(int argc, char *argv[])
 {
@@ -114,9 +114,7 @@ int main(int argc, char *argv[])
         // CNN Architecture (same as EMNIST):
         // Input: 1x28x28
         // Conv1: 1x28x28 -> 8 filters 5x5 -> 8x24x24
-        // Pool1: 8x24x24 -> 2x2 pool -> 8x12x12
         // Conv2: 8x12x12 -> 16 filters 3x3 -> 16x10x10
-        // Pool2: 16x10x10 -> 2x2 pool -> 16x5x5 = 400
         // Dense1: 400 -> 128
         // Dense2: 128 -> 26
 
@@ -151,7 +149,7 @@ int main(int argc, char *argv[])
 
         size_t dense_neurons[] = {128, OUTPUTS};
         ActivationType activations[] = {
-            ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID
+            ACTIVATION_LEAKY_RELU, ACTIVATION_LEAKY_RELU
         };
 
         ErrorCode err =
@@ -173,9 +171,7 @@ int main(int argc, char *argv[])
         printf("\nCNN Architecture:\n");
         printf("  Input: 1x28x28\n");
         printf("  Conv1: 1x28x28 -> 8 filters 5x5 -> 8x24x24\n");
-        printf("  Pool1: 8x24x24 -> 2x2 pool -> 8x12x12\n");
         printf("  Conv2: 8x12x12 -> 16 filters 3x3 -> 16x10x10\n");
-        printf("  Pool2: 16x10x10 -> 2x2 pool -> 16x5x5\n");
         printf("  Flatten: %zu (16*5*5 = 400)\n", nn.flattened_size);
         printf("  Dense1: %zu -> 128 (Leaky ReLU)\n", nn.flattened_size);
         printf("  Dense2: %zu -> %d (Sigmoid)\n", dense_neurons[0], OUTPUTS);
@@ -266,39 +262,27 @@ int main(int argc, char *argv[])
             (epoch_time / train_dataset->num_samples) * 1000.0
         );
 
-        // Save model
-        char filepath[512];
-        snprintf(
-            filepath, sizeof(filepath), "%s/custom-cnn-epoch-%zu.nn", save_path,
-            total_epochs
-        );
-        ErrorCode save_err = save_nn(filepath, &nn);
-        if (save_err == NN_ERR_OK)
+        if (total_epochs % 20 == 0 && total_epochs > 0)
         {
-            printf("    Model saved: %s\n", filepath);
-        }
-        else
-        {
-            fprintf(
-                stderr, "    Error saving model: %s\n",
-                nn_error_to_string(save_err)
+
+            // Save model
+            char filepath[512];
+            snprintf(
+                filepath, sizeof(filepath), "%s/custom-cnn-epoch-%zu.nn",
+                save_path, total_epochs
             );
-        }
-
-        printf("\n");
-
-        // Learning rate decay
-        if (total_epochs % 10 == 0 && total_epochs > 0)
-        {
-            nn.learning_rate *= 0.9;
-            printf("  Learning rate reduced to: %.6f\n\n", nn.learning_rate);
-        }
-
-        // Early stopping
-        if (test_metrics.accuracy > 0.98)
-        {
-            printf("🎉 Reached 98%% test accuracy! Stopping.\n");
-            break;
+            ErrorCode save_err = save_nn(filepath, &nn);
+            if (save_err == NN_ERR_OK)
+            {
+                printf("    Model saved: %s\n", filepath);
+            }
+            else
+            {
+                fprintf(
+                    stderr, "    Error saving model: %s\n",
+                    nn_error_to_string(save_err)
+                );
+            }
         }
     }
 
