@@ -166,7 +166,11 @@ void on_open_nn(GtkButton *btn, gpointer user_data)
 
 void on_save() {}
 
-void on_solve(GtkButton *btn, gpointer user_data) {}
+void on_solve(GtkButton *btn, gpointer user_data)
+{
+    (void)btn;
+    (void)user_data;
+}
 
 void on_open_training(GtkButton *btn, gpointer user_data)
 {
