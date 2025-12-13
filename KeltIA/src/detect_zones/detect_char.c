@@ -269,7 +269,7 @@ CharBBox *detect_characters(
 
     // POST-PROCESSING: Split grouped letters
     printf("  Before splitting: %d characters\n", *char_count);
-    characters = split_grouped_letters(characters, char_count, 1.5);
+    characters = split_grouped_letters(characters, char_count, 1.8);
     printf("  After splitting: %d characters\n", *char_count);
 
     return characters;
