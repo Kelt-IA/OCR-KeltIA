@@ -87,13 +87,6 @@ MagickWand *apply_selected_treatments(
     return treated;
 }
 
-// Structure pour retourner les deux chemins d'images
-typedef struct
-{
-    char *nn_image_path;
-    char *ui_image_path;
-} ProcessedImages;
-
 // Fonction principale : traite l'image et retourne les chemins vers les deux
 // images traitées
 ProcessedImages *process_image(
