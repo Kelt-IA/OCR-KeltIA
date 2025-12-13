@@ -51,3 +51,9 @@ void DrawLetterBoundries(
 
 // saves a letter boundry as a bitmap 28*28
 int save_charbbox_as_bitmap(MagickWand *wand, CharBBox bbox, const char *path);
+
+// Builds a matrix from an array of CharBBox
+CharBBox **build_matrix(CharBBox *input, int count, int length);
+
+// Counts the number of characters per row in the grid
+int *count_chars_per_row(CharBBox *chars, int count, int *num_rows);

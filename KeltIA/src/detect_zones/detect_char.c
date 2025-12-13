@@ -149,6 +149,89 @@ CharBBox *detect_characters(
     return characters;
 }
 
+CharBBox **build_matrix(CharBBox *input, int count, int length)
+{
+    if (length <= 0 || count <= 0) { return NULL; }
+
+    int rows = (count + length - 1) / length;
+
+    CharBBox **matrix = malloc(rows * sizeof(CharBBox *));
+    if (!matrix) return NULL;
+
+    for (int r = 0; r < rows; r++)
+    {
+        matrix[r] = calloc(length, sizeof(CharBBox));
+        if (!matrix[r])
+        {
+            for (int k = 0; k < r; k++) free(matrix[k]);
+            free(matrix);
+            return NULL;
+        }
+    }
+
+    int src = 0;
+    for (int r = 0; r < rows; r++)
+    {
+        for (int c = 0; c < length; c++)
+        {
+            if (src < count) { matrix[r][c] = input[src++]; }
+        }
+    }
+
+    return matrix;
+}
+
+// Comparator for sorting CharBBox by y position
+int compare_charbbox_y(const void *a, const void *b)
+{
+    CharBBox *char_a = (CharBBox *)a;
+    CharBBox *char_b = (CharBBox *)b;
+    return char_a->y - char_b->y;
+}
+
+// Counts the number of characters per row
+int *count_chars_per_row(CharBBox *chars, int count, int *num_rows)
+{
+    if (count == 0)
+    {
+        *num_rows = 0;
+        return NULL;
+    }
+
+    // Sort characters by y position
+    qsort(chars, count, sizeof(CharBBox), compare_charbbox_y);
+
+    // Calculate average height to determine row separation threshold
+    int total_height = 0;
+    for (int i = 0; i < count; i++) { total_height += chars[i].h; }
+    int avg_height = total_height / count;
+    int threshold = avg_height / 2;  // Half the average height as threshold
+
+    // Count rows
+    int rows = 1;
+    for (int i = 1; i < count; i++)
+    {
+        if (chars[i].y - chars[i - 1].y > threshold) { rows++; }
+    }
+
+    *num_rows = rows;
+
+    // Allocate array for counts
+    int *counts = calloc(rows, sizeof(int));
+    if (!counts) return NULL;
+
+    // Count characters per row
+    int current_row = 0;
+    counts[0] = 1;
+    for (int i = 1; i < count; i++)
+    {
+        if (chars[i].y - chars[i - 1].y > threshold) { current_row++; }
+        counts[current_row]++;
+    }
+
+    return counts;
+}
+
 // Export a zone containing a character
 MagickWand *extract_zone(MagickWand *wand, int x, int y, int width, int height)
 {
