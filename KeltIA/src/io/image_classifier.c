@@ -187,7 +187,7 @@ static int copy_file(const char *src, const char *dst)
 }
 
 // Check if file is an image (by extension)
-static int is_image_file(const char *filename)
+int is_image_file(const char *filename)
 {
     size_t len = strlen(filename);
     if (len < 4) return 0;
@@ -200,7 +200,7 @@ static int is_image_file(const char *filename)
 }
 
 // Main classification and organization function
-int classify_and_organize_images(
+int lassify_and_organize_images(
     NeuronalNetwork *nn,
     const char *input_dir,
     const char *output_dir,

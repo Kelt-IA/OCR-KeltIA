@@ -1,8 +1,10 @@
 #include "../../include/io/bitmap_loader.h"
 #include "../../include/nn/include_nn.h"
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 // Load single image using MagickWand and convert to grayscale
 uint8_t *load_single_image_magick(
@@ -62,20 +64,13 @@ uint8_t *load_single_image_magick(
         return NULL;
     }
 
-    // INVERT pixels: white background -> black, black letters -> white
-    // This matches MNIST/EMNIST format (black background, white letters)
-    for (size_t i = 0; i < image_size; i++) { pixels[i] = 255 - pixels[i]; }
-
     DestroyMagickWand(wand);
     return pixels;
 }
 
-// Resize image to target dimensions using MagickWand
-uint8_t *resize_image_magick(
-    const char *filepath,
-    size_t target_width,
-    size_t target_height
-)
+// Resize and pad image to exactly 28x28 maintaining aspect ratio
+// with padding around the letter
+uint8_t *resize_and_pad_to_28x28(const char *filepath)
 {
     MagickWand *wand = NewMagickWand();
     MagickBooleanType status;
@@ -93,54 +88,177 @@ uint8_t *resize_image_magick(
         return NULL;
     }
 
-    // Convert to grayscale
+    // STEP 1: Convert to grayscale FIRST
     MagickSetImageColorspace(wand, GRAYColorspace);
     MagickSetImageType(wand, GrayscaleType);
 
-    // Resize image (using Lanczos filter for quality)
-    status =
-        MagickResizeImage(wand, target_width, target_height, LanczosFilter);
-    if (status == MagickFalse)
+    // Get original dimensions
+    size_t orig_width = MagickGetImageWidth(wand);
+    size_t orig_height = MagickGetImageHeight(wand);
+
+    // STEP 2: Calculate scaling to fit in 22x22 (leaving 3px padding on each
+    // side) This gives more breathing room around the letter
+    size_t target_size = 22;  // Target size with padding margin
+    double scale_w = (double)target_size / orig_width;
+    double scale_h = (double)target_size / orig_height;
+    double scale = (scale_w < scale_h) ? scale_w : scale_h;
+
+    // Don't scale up, only scale down
+    if (scale > 1.0) { scale = 1.0; }
+
+    size_t new_width = (size_t)(orig_width * scale);
+    size_t new_height = (size_t)(orig_height * scale);
+
+    // Make sure it fits in target_size
+    if (new_width > target_size) new_width = target_size;
+    if (new_height > target_size) new_height = target_size;
+
+    // STEP 3: Resize if needed
+    if (new_width != orig_width || new_height != orig_height)
     {
-        fprintf(stderr, "Error resizing image %s\n", filepath);
-        DestroyMagickWand(wand);
-        return NULL;
+        status = MagickResizeImage(wand, new_width, new_height, LanczosFilter);
+        if (status == MagickFalse)
+        {
+            fprintf(stderr, "Error resizing image %s\n", filepath);
+            DestroyMagickWand(wand);
+            return NULL;
+        }
     }
 
-    // Export pixels
-    size_t image_size = target_width * target_height;
-    uint8_t *pixels = malloc(image_size * sizeof(uint8_t));
+    // STEP 4: Create new 28x28 image with white background
+    MagickWand *canvas = NewMagickWand();
+    PixelWand *white = NewPixelWand();
+    PixelSetColor(white, "white");
+    MagickNewImage(canvas, 28, 28, white);
+    DestroyPixelWand(white);
 
+    // STEP 5: Center the resized image with padding on all sides
+    ssize_t x_offset = (28 - new_width) / 2;
+    ssize_t y_offset = (28 - new_height) / 2;
+
+    // Composite the resized image onto the white canvas
+    MagickCompositeImage(
+        canvas, wand, OverCompositeOp, MagickTrue, x_offset, y_offset
+    );
+
+    // STEP 6: Export pixels
+    uint8_t *pixels = malloc(28 * 28 * sizeof(uint8_t));
     if (!pixels)
     {
         fprintf(stderr, "Error allocating pixel buffer\n");
         DestroyMagickWand(wand);
+        DestroyMagickWand(canvas);
         return NULL;
     }
 
-    status = MagickExportImagePixels(
-        wand, 0, 0, target_width, target_height, "I", CharPixel, pixels
-    );
+    status =
+        MagickExportImagePixels(canvas, 0, 0, 28, 28, "I", CharPixel, pixels);
 
     if (status == MagickFalse)
     {
         fprintf(stderr, "Error exporting pixels from %s\n", filepath);
         free(pixels);
         DestroyMagickWand(wand);
+        DestroyMagickWand(canvas);
         return NULL;
     }
 
+    // NO INVERSION - keep white background, black letters
+
     DestroyMagickWand(wand);
+    DestroyMagickWand(canvas);
+
     return pixels;
 }
 
-// Load multiple images from directory with labels file
-ImageData *
-load_images_magick(const char *directory_path, const char *label_file)
+// Shuffle dataset (Fisher-Yates algorithm)
+static void shuffle_dataset(ImageData *data)
 {
-    // Initialize MagickWand environment
+    srand(time(NULL));
+
+    for (size_t i = data->num_images - 1; i > 0; i--)
+    {
+        size_t j = rand() % (i + 1);
+
+        // Swap images
+        uint8_t *temp_img = data->images[i];
+        data->images[i] = data->images[j];
+        data->images[j] = temp_img;
+
+        // Swap labels
+        uint8_t temp_label = data->labels[i];
+        data->labels[i] = data->labels[j];
+        data->labels[j] = temp_label;
+    }
+}
+
+// Check if file is an image (by extension)
+static int is_image_file(const char *filename)
+{
+    size_t len = strlen(filename);
+    if (len < 4) return 0;
+
+    const char *ext = filename + len - 4;
+    return (
+        strcasecmp(ext, ".bmp") == 0 || strcasecmp(ext, ".png") == 0 ||
+        strcasecmp(ext, ".jpg") == 0 || strcasecmp(ext + 1, ".jpeg") == 0
+    );
+}
+
+// Count images in a directory
+static size_t count_images_in_dir(const char *dir_path)
+{
+    DIR *dir = opendir(dir_path);
+    if (!dir) return 0;
+
+    size_t count = 0;
+    struct dirent *entry;
+
+    while ((entry = readdir(dir)) != NULL)
+    {
+        if (entry->d_type == DT_REG && is_image_file(entry->d_name))
+        {
+            count++;
+        }
+    }
+
+    closedir(dir);
+    return count;
+}
+
+// Load dataset from folder structure (dataset/A/, dataset/B/, ...)
+ImageData *load_dataset_from_folders(const char *dataset_path)
+{
     MagickWandGenesis();
 
+    printf("Loading dataset from: %s\n", dataset_path);
+
+    // Count total images across all letter folders
+    size_t total_images = 0;
+    for (char letter = 'A'; letter <= 'Z'; letter++)
+    {
+        char folder_path[512];
+        snprintf(
+            folder_path, sizeof(folder_path), "%s/%c", dataset_path, letter
+        );
+
+        size_t count = count_images_in_dir(folder_path);
+        if (count > 0)
+        {
+            printf("  %c: %zu images\n", letter, count);
+            total_images += count;
+        }
+    }
+
+    if (total_images == 0)
+    {
+        fprintf(stderr, "No images found in dataset\n");
+        return NULL;
+    }
+
+    printf("Total images: %zu\n", total_images);
+
+    // Allocate ImageData structure
     ImageData *data = malloc(sizeof(ImageData));
     if (!data)
     {
@@ -149,138 +267,87 @@ load_images_magick(const char *directory_path, const char *label_file)
     }
     memset(data, 0, sizeof(ImageData));
 
-    // Read labels file (format: filename,label per line)
-    FILE *label_f = fopen(label_file, "r");
-    if (!label_f)
-    {
-        fprintf(stderr, "Error opening label file: %s\n", label_file);
-        free(data);
-        return NULL;
-    }
-
-    // Count number of images
-    char line[512];
-    size_t count = 0;
-    while (fgets(line, sizeof(line), label_f))
-    {
-        if (line[0] != '\n' && line[0] != '#')
-        {  // Skip empty lines and comments
-            count++;
-        }
-    }
-    rewind(label_f);
-
-    if (count == 0)
-    {
-        fprintf(stderr, "No images found in label file\n");
-        fclose(label_f);
-        free(data);
-        return NULL;
-    }
-
-    printf("Loading %zu images from %s\n", count, directory_path);
-
-    // Allocate arrays
-    data->num_images = count;
-    data->images = malloc(count * sizeof(uint8_t *));
-    data->labels = malloc(count * sizeof(uint8_t));
+    data->num_images = total_images;
+    data->width = 28;
+    data->height = 28;
+    data->images = malloc(total_images * sizeof(uint8_t *));
+    data->labels = malloc(total_images * sizeof(uint8_t));
 
     if (!data->images || !data->labels)
     {
         fprintf(stderr, "Error allocating image/label arrays\n");
-        fclose(label_f);
         free(data);
         return NULL;
     }
 
-    // Load each image
+    // Load images from each letter folder
     size_t idx = 0;
-    size_t first_width = 0, first_height = 0;
 
-    while (fgets(line, sizeof(line), label_f) && idx < count)
+    for (char letter = 'A'; letter <= 'Z'; letter++)
     {
-        // Skip empty lines and comments
-        if (line[0] == '\n' || line[0] == '#') continue;
+        char folder_path[512];
+        snprintf(
+            folder_path, sizeof(folder_path), "%s/%c", dataset_path, letter
+        );
 
-        // Parse filename and label
-        char filename[256];
-        int label;
+        DIR *dir = opendir(folder_path);
+        if (!dir) continue;  // Skip if folder doesn't exist
 
-        if (sscanf(line, "%255[^,],%d", filename, &label) != 2)
+        uint8_t label = letter - 'A';  // A=0, B=1, ..., Z=25
+        struct dirent *entry;
+        size_t loaded_in_folder = 0;
+
+        while ((entry = readdir(dir)) != NULL)
         {
-            fprintf(
-                stderr, "Warning: invalid line format at line %zu\n", idx + 1
+            // Skip directories and non-image files
+            if (entry->d_type != DT_REG || !is_image_file(entry->d_name))
+            {
+                continue;
+            }
+
+            // Build full file path
+            char filepath[768];
+            snprintf(
+                filepath, sizeof(filepath), "%s/%s", folder_path, entry->d_name
             );
-            continue;
-        }
 
-        // Build full path
-        char filepath[512];
-        snprintf(filepath, sizeof(filepath), "%s/%s", directory_path, filename);
+            // Load and resize/pad to 28x28
+            uint8_t *pixels = resize_and_pad_to_28x28(filepath);
 
-        // Load image
-        size_t width, height;
-        uint8_t *image = load_single_image_magick(filepath, &width, &height);
-
-        if (!image)
-        {
-            fprintf(stderr, "Warning: failed to load %s, skipping\n", filepath);
-            continue;
-        }
-
-        // Store dimensions from first image
-        if (idx == 0)
-        {
-            first_width = width;
-            first_height = height;
-            data->width = width;
-            data->height = height;
-            printf("Image dimensions: %zux%zu pixels\n", width, height);
-        }
-        else
-        {
-            // Verify all images have same dimensions
-            if (width != first_width || height != first_height)
+            if (!pixels)
             {
                 fprintf(
-                    stderr,
-                    "Warning: image %s has different dimensions (%zux%zu), "
-                    "expected %zux%zu. Resizing...\n",
-                    filename, width, height, first_width, first_height
+                    stderr, "Warning: failed to load %s, skipping\n", filepath
                 );
-                free(image);
-
-                // Resize to match first image dimensions
-                image =
-                    resize_image_magick(filepath, first_width, first_height);
-                if (!image)
-                {
-                    fprintf(
-                        stderr, "Error resizing image %s, skipping\n", filename
-                    );
-                    continue;
-                }
+                continue;
             }
+
+            data->images[idx] = pixels;
+            data->labels[idx] = label;
+            idx++;
+            loaded_in_folder++;
         }
 
-        data->images[idx] = image;
-        data->labels[idx] = (uint8_t)label;
-        idx++;
+        closedir(dir);
 
-        if ((idx % 100) == 0)
+        if (loaded_in_folder > 0)
         {
-            printf("Loaded %zu/%zu images...\n", idx, count);
+            printf(
+                "  ✓ Loaded %zu images for letter %c\n", loaded_in_folder,
+                letter
+            );
         }
     }
 
-    fclose(label_f);
+    // Update actual count (in case some images failed to load)
+    data->num_images = idx;
 
-    data->num_images = idx;  // Update to actual loaded count
+    printf("\n✓ Total loaded: %zu images\n", data->num_images);
 
-    printf(
-        "✓ Successfully loaded %zu images (%zux%zu)\n", data->num_images,
-        data->width, data->height
-    );
+    // SHUFFLE the dataset
+    printf("Shuffling dataset...\n");
+    shuffle_dataset(data);
+    printf("✓ Dataset shuffled\n");
 
     return data;
 }
@@ -320,7 +387,6 @@ void images_to_dataset(
         if (!dataset->inputs[i])
         {
             fprintf(stderr, "Error allocating input %d\n", i);
-            // Cleanup
             for (int j = 0; j < i; j++)
             {
                 free(dataset->inputs[j]);
@@ -342,7 +408,6 @@ void images_to_dataset(
         if (!dataset->targets[i])
         {
             fprintf(stderr, "Error allocating target %d\n", i);
-            // Cleanup
             for (int j = 0; j <= i; j++) { free(dataset->inputs[j]); }
             for (int j = 0; j < i; j++) { free(dataset->targets[j]); }
             free(dataset->inputs);
@@ -389,6 +454,5 @@ void free_image_data(ImageData *data)
 
     free(data);
 
-    // Cleanup MagickWand environment
     MagickWandTerminus();
 }

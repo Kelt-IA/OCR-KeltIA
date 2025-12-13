@@ -16,10 +16,6 @@ typedef struct
     size_t height;      // Image height
 } ImageData;
 
-// Load images from directory using MagickWand
-ImageData *
-load_images_magick(const char *directory_path, const char *label_file);
-
 // Load single image using MagickWand
 uint8_t *load_single_image_magick(
     const char *filepath,
@@ -27,7 +23,13 @@ uint8_t *load_single_image_magick(
     size_t *out_height
 );
 
-// Convert ImageData to Dataset
+// Resize and pad image to 28x28 maintaining aspect ratio
+uint8_t *resize_and_pad_to_28x28(const char *filepath);
+
+// Load dataset from folder structure (dataset/A/, dataset/B/, etc.)
+ImageData *load_dataset_from_folders(const char *dataset_path);
+
+// Convert ImageData to Dataset for neural network
 void images_to_dataset(
     ImageData *images,
     Dataset **out_dataset,
