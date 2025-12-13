@@ -1,4 +1,3 @@
-
 #include "../../include/detect_zones/detect_letters.h"
 #include <MagickWand/MagickWand.h>
 #include <stdlib.h>
@@ -26,6 +25,67 @@ static int is_valid_character(
     if (width < 5 || height < 5) { return 0; }
 
     return 1;
+}
+
+// Check if bbox1 is completely inside bbox2
+static int is_bbox_inside(CharBBox *bbox1, CharBBox *bbox2)
+{
+    return (
+        bbox1->x >= bbox2->x && bbox1->y >= bbox2->y &&
+        bbox1->x + bbox1->w <= bbox2->x + bbox2->w &&
+        bbox1->y + bbox1->h <= bbox2->y + bbox2->h
+    );
+}
+
+// Remove nested bounding boxes (inner components of letters like O, A, B, D)
+static int filter_nested_bboxes(CharBBox *characters, int char_count)
+{
+    if (char_count <= 1) return char_count;
+
+    // Create array to mark which bboxes to keep
+    char *keep = malloc(char_count * sizeof(char));
+    if (keep == NULL) return char_count;  // If malloc fails, return original
+
+    for (int i = 0; i < char_count; i++)
+    {
+        keep[i] = 1;  // Assume we keep it initially
+    }
+
+    // Mark nested boxes for removal
+    for (int i = 0; i < char_count; i++)
+    {
+        if (!keep[i]) continue;
+
+        for (int j = 0; j < char_count; j++)
+        {
+            if (i == j || !keep[j]) continue;
+
+            // If character i is completely inside character j
+            if (is_bbox_inside(&characters[i], &characters[j]))
+            {
+                // Keep the larger one (j), remove the smaller one (i)
+                keep[i] = 0;
+                break;
+            }
+        }
+    }
+
+    // Compact array - remove unmarked characters
+    int write_index = 0;
+    for (int read_index = 0; read_index < char_count; read_index++)
+    {
+        if (keep[read_index])
+        {
+            if (write_index != read_index)
+            {
+                characters[write_index] = characters[read_index];
+            }
+            write_index++;
+        }
+    }
+
+    free(keep);
+    return write_index;  // Return new count
 }
 
 // Main character detection function
@@ -58,10 +118,10 @@ CharBBox *detect_letters(
     MagickThresholdImage(cropped_wand, QuantumRange * 0.5);
 
     // Step 3: Run connected components analysis
-    // Using 8-connectivity to detect diagonal connections
+    // Using 4-connectivity to avoid merging touching letters
     MagickBooleanType status = MagickConnectedComponentsImage(
         cropped_wand,
-        8,  // 8-way connectivity
+        4,  // 4-way connectivity (only horizontal/vertical, no diagonals)
         &objects
     );
 
@@ -76,10 +136,10 @@ CharBBox *detect_letters(
 
     // Step 5: Calculate adaptive thresholds based on region size
     int total_area = width * height;
-    int min_char_area = (int)(total_area * 0.0001);  // 0.01% of total area
-    int max_char_area = (int)(total_area * 0.1);     // 10% of total area
-    float min_aspect = 0.1f;                         // Very thin characters
-    float max_aspect = 5.0f;                         // Very wide characters
+    int min_char_area = (int)(total_area * 0.00005);  // 0.005% of total area
+    int max_char_area = (int)(total_area * 0.1);      // 10% of total area
+    float min_aspect = 0.1f;                          // Very thin characters
+    float max_aspect = 5.0f;                          // Very wide characters
 
     // Step 6: Count valid characters first
     for (size_t i = 1; i < num_objects; i++)
@@ -131,7 +191,11 @@ CharBBox *detect_letters(
 
     *char_count = valid_count;
 
-    // Step 9: Cleanup
+    // Step 9: Filter nested bounding boxes (removes inner holes of O, A, B, D,
+    // etc.)
+    *char_count = filter_nested_bboxes(results, *char_count);
+
+    // Step 10: Cleanup
     objects = (CCObjectInfo *)RelinquishMagickMemory(objects);
     DestroyMagickWand(cropped_wand);
 
