@@ -48,8 +48,6 @@ void train_nn(
         }
     }
 
-    printf("Training with SGD (batch_size=1)...\n");
-
     for (size_t epoch = 0; epoch < epochs && !stop_requested; epoch++)
     {
         // Shuffle dataset (opcional pero recomendado)
@@ -101,16 +99,6 @@ void train_nn(
                 memset(
                     grad_biases[l], 0, nn->layers[l].n_neurons * sizeof(double)
                 );
-            }
-
-            // Progress indicator (cada 1000 samples)
-            if ((i + 1) % 1000 == 0)
-            {
-                printf(
-                    "\r  Processed %zu/%d samples...", i + 1,
-                    dataset->num_samples
-                );
-                fflush(stdout);
             }
         }
 

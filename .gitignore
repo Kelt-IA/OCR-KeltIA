@@ -71,3 +71,5 @@ KeltIA/bin/
 */clangd.yaml
 KeltIA/data/
 KeltIA/mnist.sh
+KeltIA/extracted_characters
+KeltIA/letters_train

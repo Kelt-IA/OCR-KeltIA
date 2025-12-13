@@ -183,7 +183,9 @@ void compute_nn(NeuronalNetwork *nn, double *input, double *output)
     for (size_t l = 0; l < nn->n_layers; l++)
     {
         Layer *layer = &nn->layers[l];
-        foward_layer(layer, (double *)current_input);
+
+        forward_layer(layer, (double *)current_input);
+
         current_input = layer->output;
     }
 

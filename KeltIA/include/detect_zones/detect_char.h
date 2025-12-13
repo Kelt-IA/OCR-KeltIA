@@ -51,3 +51,5 @@ void DrawLetterBoundries(
 
 // saves a letter boundry as a bitmap 28*28
 int save_charbbox_as_bitmap(MagickWand *wand, CharBBox bbox, const char *path);
+
+double *charbbox_to_cnn_input(MagickWand *wand, CharBBox bbox);

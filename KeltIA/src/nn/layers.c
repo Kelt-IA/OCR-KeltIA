@@ -1,3 +1,4 @@
+#include "../../include/nn/activation.h"
 #include "../../include/nn/include_nn.h"
 #include <math.h>
 #include <stdio.h>
@@ -30,6 +31,11 @@ void set_activation(Layer *layer, ActivationType type)
         layer->derivative_fn = leaky_relu_derivative;
         break;
 
+    case ACTIVATION_SOFTMAX:
+        layer->activation_fn = NULL;
+        layer->derivative_fn = softmax_derivative;
+        break;
+
     case ACTIVATION_STEP:
         layer->activation_fn = step;
         layer->derivative_fn = NULL;  // not used
@@ -37,21 +43,8 @@ void set_activation(Layer *layer, ActivationType type)
     }
 }
 
-void foward_layer(Layer *layer, double *input)
+void forward_layer(Layer *layer, double *input)
 {
-    // z = W * input + bias
-    // cblas_dgemv(
-    //     CblasRowMajor, CblasNoTrans, layer->n_neurons,
-    //     layer->n_inputs,                  // M x N de W
-    //     1.0,                              // alpha
-    //     layer->weights, layer->n_inputs,  // W, lda = n_inputs
-    //     input, 1,                         // vector input, incx=1
-    //     0.0, layer->z, 1
-    // );
-    //
-    // // bias: z += bias
-    // cblas_daxpy(layer->n_neurons, 1.0, layer->bias, 1, layer->z, 1);
-
     for (size_t i = 0; i < layer->n_neurons; i++)
     {
         double sum = layer->bias[i];  // Start with bias
@@ -65,9 +58,16 @@ void foward_layer(Layer *layer, double *input)
         layer->z[i] = sum;
     }
 
-    for (size_t j = 0; j < layer->n_neurons; j++)
+    if (layer->activation_type == ACTIVATION_SOFTMAX)
     {
-        layer->output[j] = layer->activation_fn(layer->z[j]);
+        softmax_activation(layer->z, layer->output, layer->n_neurons);
+    }
+    else
+    {
+        for (size_t j = 0; j < layer->n_neurons; j++)
+        {
+            layer->output[j] = layer->activation_fn(layer->z[j]);
+        }
     }
 }
 
@@ -122,7 +122,6 @@ void init_weights(Layer *layer)
 
     for (size_t i = 0; i < (layer->n_neurons * layer->n_inputs); i++)
     {
-        // Distribución uniforme en [-xavier_limit, +xavier_limit]
         layer->weights[i] =
             ((double)rand() / RAND_MAX) * 2.0 * xavier_limit - xavier_limit;
     }

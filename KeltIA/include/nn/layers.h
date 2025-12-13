@@ -23,7 +23,7 @@ typedef struct
 #define WEIGHT(layer, i, j) ((layer)->weights[(i) * (layer)->n_inputs + (j)])
 
 void free_layer(Layer *layer);
-void foward_layer(Layer *layer, double *input);
+void forward_layer(Layer *layer, double *input);
 void softmax(Layer *layer);
 
 int create_layer(

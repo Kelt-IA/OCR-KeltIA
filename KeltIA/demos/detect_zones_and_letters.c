@@ -1,3 +1,4 @@
+// #include "../include/detect_zones/detect_letters.h"
 #include "../include/detect_zones/detect_char.h"
 #include "../include/detect_zones/detect_zones.h"
 #include <err.h>
@@ -9,7 +10,6 @@ int main(int argc, char *argv[])
     if (argc != 3)
     {
         errx(EXIT_FAILURE, "Usage: %s <input_image> <output_image>\n", argv[0]);
-        errx(EXIT_FAILURE, "Detect the grid and the wordlist in a picture.\n");
     }
 
     const char *input_path = argv[1];
@@ -17,7 +17,6 @@ int main(int argc, char *argv[])
 
     MagickWandGenesis();
     MagickWand *wand = NewMagickWand();
-    DrawingWand *draw = NewDrawingWand();
 
     if (!MagickReadImage(wand, input_path))
     {
@@ -42,6 +41,19 @@ int main(int argc, char *argv[])
         ez.words.y_max - ez.words.y_min, &words_chars
     );
 
+    printf("letters detected in grid: %d\n", grid_chars);
+    printf("letters detected in wordlist: %d\n", words_chars);
+
+    DrawingWand *draw = NewDrawingWand();
+
+    // draw letters
+    DrawLetterBoundries(wand, draw, grid_characters, grid_chars, "orange");
+    DrawLetterBoundries(wand, draw, words_characters, words_chars, "yellow");
+
+    // draw zones
+    DrawZoneBoundries(draw, &ez.grid, "red");
+    DrawZoneBoundries(draw, &ez.words, "green");
+
     printf(
         "Grid : x1:%i y1:%i x2:%i y2:%i\n", ez.grid.x_min, ez.grid.y_min,
         ez.grid.x_max, ez.grid.y_max
@@ -53,7 +65,10 @@ int main(int argc, char *argv[])
 
     // MagickDrawImage(wand, draw);
 
+    // save images for training
+
     // Create output directory for extracted characters
+    /*
     const char *output_dir = "extracted_characters";
     mkdir(output_dir, 0755);
 
@@ -116,19 +131,13 @@ int main(int argc, char *argv[])
         }
     }
 
-    // draw letters
-    DrawLetterBoundries(wand, draw, grid_characters, grid_chars, "blue");
-    DrawLetterBoundries(wand, draw, words_characters, words_chars, "blue");
-
-    // draw zones
-    DrawZoneBoundries(draw, &ez.grid, "red");
-    DrawZoneBoundries(draw, &ez.words, "green");
-
-    free(grid_characters);
-    free(words_characters);
 
     printf("=== Extraction complete ===\n");
     printf("All characters saved to: %s/\n\n", output_dir);
+    */
+
+    free(grid_characters);
+    free(words_characters);
 
     MagickWriteImage(wand, output_path);
     DestroyDrawingWand(draw);
