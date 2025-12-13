@@ -1,9 +1,5 @@
 #include "../../include/image/autorotation.h"
 #include "../../include/image/rotation.h"
-#include <MagickWand/MagickWand.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 /*
   Detects the optimal rotation angle by analyzing image contours

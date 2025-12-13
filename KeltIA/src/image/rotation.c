@@ -1,7 +1,4 @@
 #include "../../include/image/rotation.h"
-#include <MagickWand/MagickWand.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 MagickWand *rotate_image(const MagickWand *input_wand, double angle)
 {

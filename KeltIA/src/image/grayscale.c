@@ -1,7 +1,4 @@
-#include <MagickWand/MagickWand.h>
-#include <err.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "../../include/image/grayscale.h"
 
 // Compute the average gray level and return a normalized threshold (0.0–1.0)
 
