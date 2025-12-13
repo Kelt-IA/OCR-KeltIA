@@ -17,9 +17,10 @@ char *nn = NULL;
 
 GtkWidget *solve_btn = NULL;
 
-void callback_init(GtkBuilder *b)
+void callback_init(GtkBuilder *b, GtkWidget *w)
 {
     builder = b;
+    window = w;
 
     if (!(window = GTK_WIDGET(gtk_builder_get_object(builder, "main_window"))))
         errx(EXIT_FAILURE, "Could not find the main window");
