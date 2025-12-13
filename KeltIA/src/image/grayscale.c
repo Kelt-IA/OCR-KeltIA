@@ -72,11 +72,60 @@ static double compute_average_gray(MagickWand *wand)
 //     - Convert image to grayscale
 //     - Compute the optimal threshold (Otsu-like)
 //     - Apply binary thresholding
+// MagickBooleanType
+// binarize_image(const char *input_path, const char *output_path)
+// {
+//     MagickWandGenesis();
+//     MagickWand *wand = NULL;
+//     MagickBooleanType status;
+//     double avg_gray, threshold_value, quantum_range;
+//
+//     wand = NewMagickWand();
+//     if (MagickReadImage(wand, input_path) == MagickFalse)
+//     {
+//         fprintf(stderr, "Error: unable to read '%s'\n", input_path);
+//         if (wand) wand = DestroyMagickWand(wand);
+//         return MagickFalse;
+//     }
+//
+//     MagickSetImageType(wand, GrayscaleType);
+//
+//     // Compute optimal threshold
+//     avg_gray = compute_average_gray(wand);
+//     quantum_range = (double)QuantumRange;
+//     threshold_value = avg_gray * quantum_range;
+//
+//     printf(
+//         "→ Automatic threshold: %.3f (%.0f out of %.0f)\n", avg_gray,
+//         threshold_value, quantum_range
+//     );
+//
+//     // Apply binary threshold
+//     status = MagickThresholdImage(wand, threshold_value);
+//     if (status == MagickFalse)
+//     {
+//         fprintf(stderr, "Error: thresholding failed.\n");
+//         wand = DestroyMagickWand(wand);
+//         return MagickFalse;
+//     }
+//
+//     // Save result
+//     if (MagickWriteImage(wand, output_path) == MagickFalse)
+//     {
+//         fprintf(stderr, "Error: unable to write '%s'\n", output_path);
+//         wand = DestroyMagickWand(wand);
+//         return MagickFalse;
+//     }
+//
+//     printf("Binary image saved to: %s\n", output_path);
+//     wand = DestroyMagickWand(wand);
+//     MagickWandTerminus();
+//     return MagickTrue;
+// }
 
-MagickBooleanType
-binarize_image(const char *input_path, const char *output_path)
+// New function: Load and binarize image, return MagickWand (NO file output)
+MagickWand *binarize_image_wand(const char *input_path)
 {
-    MagickWandGenesis();
     MagickWand *wand = NULL;
     MagickBooleanType status;
     double avg_gray, threshold_value, quantum_range;
@@ -85,10 +134,11 @@ binarize_image(const char *input_path, const char *output_path)
     if (MagickReadImage(wand, input_path) == MagickFalse)
     {
         fprintf(stderr, "Error: unable to read '%s'\n", input_path);
-        if (wand) wand = DestroyMagickWand(wand);
-        return MagickFalse;
+        DestroyMagickWand(wand);
+        return NULL;
     }
 
+    // Convert to grayscale
     MagickSetImageType(wand, GrayscaleType);
 
     // Compute optimal threshold
@@ -106,7 +156,25 @@ binarize_image(const char *input_path, const char *output_path)
     if (status == MagickFalse)
     {
         fprintf(stderr, "Error: thresholding failed.\n");
-        wand = DestroyMagickWand(wand);
+        DestroyMagickWand(wand);
+        return NULL;
+    }
+
+    // Return the wand (image in memory)
+    return wand;
+}
+
+// Keep original function (now uses the new one)
+MagickBooleanType
+binarize_image(const char *input_path, const char *output_path)
+{
+    MagickWandGenesis();
+
+    // Use the new in-memory function
+    MagickWand *wand = binarize_image_wand(input_path);
+    if (!wand)
+    {
+        MagickWandTerminus();
         return MagickFalse;
     }
 
@@ -114,12 +182,13 @@ binarize_image(const char *input_path, const char *output_path)
     if (MagickWriteImage(wand, output_path) == MagickFalse)
     {
         fprintf(stderr, "Error: unable to write '%s'\n", output_path);
-        wand = DestroyMagickWand(wand);
+        DestroyMagickWand(wand);
+        MagickWandTerminus();
         return MagickFalse;
     }
 
     printf("Binary image saved to: %s\n", output_path);
-    wand = DestroyMagickWand(wand);
+    DestroyMagickWand(wand);
     MagickWandTerminus();
     return MagickTrue;
 }

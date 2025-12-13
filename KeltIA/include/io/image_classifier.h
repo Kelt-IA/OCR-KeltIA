@@ -35,5 +35,7 @@ ImagePrediction *predict_single_image(
     size_t height
 );
 
+int is_image_file(const char *filename);
+
 // Free prediction
 void free_prediction(ImagePrediction *pred);

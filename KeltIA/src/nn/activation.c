@@ -32,6 +32,8 @@ ActivationType int_to_activation(int value)
         return ACTIVATION_SIGMOID;
     case ACTIVATION_LEAKY_RELU:
         return ACTIVATION_LEAKY_RELU;
+    case ACTIVATION_SOFTMAX:
+        return ACTIVATION_SOFTMAX;
     case ACTIVATION_STEP:
         return ACTIVATION_STEP;
     default:
@@ -42,4 +44,32 @@ ActivationType int_to_activation(int value)
         );
         return ACTIVATION_SIGMOID;  // Fallback
     }
+}
+
+void softmax_activation(double *z, double *output, size_t size)
+{
+    // Find max for numerical stability
+    double max_val = z[0];
+    for (size_t i = 1; i < size; i++)
+    {
+        if (z[i] > max_val) max_val = z[i];
+    }
+
+    // Compute exp(z - max) and sum
+    double sum = 0.0;
+    for (size_t i = 0; i < size; i++)
+    {
+        output[i] = exp(z[i] - max_val);
+        sum += output[i];
+    }
+
+    // Normalize
+    for (size_t i = 0; i < size; i++) { output[i] /= sum; }
+}
+
+double softmax_derivative(double z, double output)
+{
+    (void)z;
+    (void)output;
+    return 1.0;  // For softmax + cross-entropy
 }
