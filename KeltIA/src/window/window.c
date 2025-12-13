@@ -1,4 +1,5 @@
 #include "../../include/window/window.h"
+#include "../../include/window/callback.h"
 
 extern GResource *keltia_get_resource(void);
 
@@ -10,7 +11,7 @@ void init_window(int *argc, char ***argv)
 
     g_resources_register(keltia_get_resource());
 
-    //g_setenv("GTK_MODULES", "", TRUE);
+    // g_setenv("GTK_MODULES", "", TRUE);
     gtk_init(argc, argv);
 
     builder = gtk_builder_new();
@@ -45,8 +46,12 @@ void init_window(int *argc, char ***argv)
         return;
     }
 
+    gtk_window_set_title(GTK_WINDOW(window), "KeltIA - OCR Hidden Word Solver");
+
     // Destroy stop the program when main window is destroyed
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+
+    callback_init(builder, window);
 
     gtk_widget_show_all(window);
     gtk_widget_realize(window);

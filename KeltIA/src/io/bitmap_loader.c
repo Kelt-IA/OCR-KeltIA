@@ -231,7 +231,7 @@ ImageData *load_dataset_from_folders(const char *dataset_path)
 {
     MagickWandGenesis();
 
-    printf("Loading dataset from: %s\n", dataset_path);
+    // printf("Loading dataset from: %s\n", dataset_path);
 
     // Count total images across all letter folders
     size_t total_images = 0;
@@ -245,7 +245,7 @@ ImageData *load_dataset_from_folders(const char *dataset_path)
         size_t count = count_images_in_dir(folder_path);
         if (count > 0)
         {
-            printf("  %c: %zu images\n", letter, count);
+            // printf("  %c: %zu images\n", letter, count);
             total_images += count;
         }
     }
@@ -256,7 +256,7 @@ ImageData *load_dataset_from_folders(const char *dataset_path)
         return NULL;
     }
 
-    printf("Total images: %zu\n", total_images);
+    // printf("Total images: %zu\n", total_images);
 
     // Allocate ImageData structure
     ImageData *data = malloc(sizeof(ImageData));
@@ -332,22 +332,22 @@ ImageData *load_dataset_from_folders(const char *dataset_path)
 
         if (loaded_in_folder > 0)
         {
-            printf(
-                "  ✓ Loaded %zu images for letter %c\n", loaded_in_folder,
-                letter
-            );
+            // printf(
+            // "  ✓ Loaded %zu images for letter %c\n", loaded_in_folder,
+            // letter
+            // );
         }
     }
 
     // Update actual count (in case some images failed to load)
     data->num_images = idx;
 
-    printf("\n✓ Total loaded: %zu images\n", data->num_images);
+    // printf("\n✓ Total loaded: %zu images\n", data->num_images);
 
     // SHUFFLE the dataset
-    printf("Shuffling dataset...\n");
+    // printf("Shuffling dataset...\n");
     shuffle_dataset(data);
-    printf("✓ Dataset shuffled\n");
+    // printf("✓ Dataset shuffled\n");
 
     return data;
 }
