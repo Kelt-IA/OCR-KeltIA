@@ -41,6 +41,7 @@ int main(int argc, char *argv[])
 
     // MagickDrawImage(wand, draw);
 
+    /*
     // Create output directory for extracted characters
     const char *output_dir = "extracted_characters";
     mkdir(output_dir, 0755);
@@ -78,6 +79,7 @@ int main(int argc, char *argv[])
         }
     }
 
+
     // Save all characters from wordlist
     printf("\nWordlist characters (%d found):\n", words_chars);
     for (int i = 0; i < words_chars; i++)
@@ -103,12 +105,13 @@ int main(int argc, char *argv[])
             printf("  ✗ [%d] Failed to save %s\n", i, filepath);
         }
     }
+    */
 
     DrawingWand *draw = NewDrawingWand();
 
     // draw letters
     DrawLetterBoundries(wand, draw, grid_characters, grid_chars, "blue");
-    DrawLetterBoundries(wand, draw, words_characters, words_chars, "blue");
+    DrawLetterBoundries(wand, draw, words_characters, words_chars, "yellow");
 
     // draw zones
     DrawZoneBoundries(draw, &ez.grid, "red");
