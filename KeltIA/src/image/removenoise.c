@@ -1,7 +1,7 @@
 #include "../../include/image/removenoise.h"
 
 // Estimation of the variance of grey levels
-static double compute_gray_stddev(MagickWand *wand)
+double compute_gray_stddev(MagickWand *wand)
 {
     PixelIterator *iterator;
     PixelWand **pixels;
@@ -43,7 +43,7 @@ static double compute_gray_stddev(MagickWand *wand)
 }
 
 // Automatic radius selection based on noise level
-static double auto_radius(double stddev)
+double auto_radius(double stddev)
 {
     if (stddev < 10) return 0.5;  // very clean image
     if (stddev < 25) return 1.0;  // slight noise
