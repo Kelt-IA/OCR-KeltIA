@@ -1,7 +1,4 @@
-#include <MagickWand/MagickWand.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "../../include/image/removenoise.h"
 
 // Estimation of the variance of grey levels
 static double compute_gray_stddev(MagickWand *wand)
