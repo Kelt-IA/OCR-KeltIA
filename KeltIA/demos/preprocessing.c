@@ -22,48 +22,52 @@ int main(int argc, char **argv)
     printf("Input: %s\n", input_path);
     printf("Output: %s\n\n", output_path);
 
-    // Load
-    MagickWand *wand = read_image(input_path);
+    // Step 1: Binarization (Otsu threshold)
+    printf("=== [1/3] Otsu Binarization ===\n");
+    MagickWand *wand = binarize_image_wand(input_path);
     if (!wand)
     {
-        MagickWandTerminus();
-        return 1;
-    }
-
-    // Step 1: Grayscale + Otsu Binarization
-    printf("=== [1/3] Otsu Binarization ===\n");
-    if (apply_otsu_binarization(wand) == MagickFalse)
-    {
         fprintf(stderr, "Error: binarization failed\n");
-        DestroyMagickWand(wand);
         MagickWandTerminus();
         return 1;
     }
     printf("  Binarization completed\n\n");
 
-    // Step 2: Remove small noise
-    printf("=== [2/3] Remove Small Noise ===\n");
-    remove_small_noise(wand);
-    printf("  Noise cleanup completed\n\n");
+    // Step 2: Noise removal
+    printf("=== [2/3] Noise Removal ===\n");
+    MagickWand *clean = remove_noise(wand);
+    if (!clean)
+    {
+        fprintf(stderr, "Error: noise removal failed\n");
+        DestroyMagickWand(wand);
+        MagickWandTerminus();
+        return 1;
+    }
+    printf("  Noise removal completed\n\n");
+
+    // Free original wand, work with clean one
+    DestroyMagickWand(wand);
 
     // Step 3: Auto-rotation
     printf("=== [3/3] Auto-rotation ===\n");
-    MagickWand *rotated = auto_rotate_image(wand);
+    MagickWand *rotated = auto_rotate_image(clean);
     if (!rotated)
     {
         fprintf(stderr, "Error: auto-rotation failed\n");
-        DestroyMagickWand(wand);
+        DestroyMagickWand(clean);
         MagickWandTerminus();
         return 1;
     }
     printf("  Auto-rotation completed\n\n");
 
-    // Save
+    // Free clean wand, work with rotated one
+    DestroyMagickWand(clean);
+
+    // Save final result
     printf("=== Saving Final Image ===\n");
     if (!write_image(rotated, output_path))
     {
         fprintf(stderr, "Error: cannot write %s\n", output_path);
-        DestroyMagickWand(wand);
         DestroyMagickWand(rotated);
         MagickWandTerminus();
         return 1;
@@ -71,7 +75,6 @@ int main(int argc, char **argv)
 
     printf("Success! Saved to: %s\n", output_path);
 
-    DestroyMagickWand(wand);
     DestroyMagickWand(rotated);
     MagickWandTerminus();
 
