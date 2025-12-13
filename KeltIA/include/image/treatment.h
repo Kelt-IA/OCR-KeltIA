@@ -1,4 +1,9 @@
 #pragma once
+#include <MagickWand/MagickWand.h>
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Structure pour retourner les deux chemins d'images
 typedef struct

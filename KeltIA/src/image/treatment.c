@@ -1,13 +1,8 @@
-#include "../include/image/treatment.h"
-#include "../include/image/autorotation.h"
-#include "../include/image/grayscale.h"
-#include "../include/image/removenoise.h"
-#include "../include/image/rotation.h"
-#include <MagickWand/MagickWand.h>
-#include <err.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "../../include/image/treatment.h"
+#include "../../include/image/autorotation.h"
+#include "../../include/image/grayscale.h"
+#include "../../include/image/removenoise.h"
+#include "../../include/image/rotation.h"
 
 // Fonction qui applique tous les traitements (pour le réseau de neurones)
 MagickWand *apply_all_treatments(MagickWand *wand, int auto_rotation)
@@ -81,7 +76,10 @@ MagickWand *apply_selected_treatments(
 
     // Appliquer rotation
     if (auto_rotation) { treated = auto_rotate_image(treated); }
-    else { treated = rotate_image(treated, manual_angle); }
+    else
+    {
+        treated = rotate_image(treated, manual_angle);
+    }
 
     // Appliquer suppression du bruit si choisi
     if (apply_noise) { treated = remove_noise(treated); }
