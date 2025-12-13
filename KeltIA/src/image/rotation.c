@@ -1,4 +1,4 @@
-#include "../include/image/rotation.h"
+#include "../../include/image/rotation.h"
 #include <MagickWand/MagickWand.h>
 #include <stdio.h>
 #include <stdlib.h>
