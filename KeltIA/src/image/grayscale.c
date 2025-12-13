@@ -2,7 +2,7 @@
 
 // Compute the average gray level and return a normalized threshold (0.0–1.0)
 
-static double compute_average_gray(MagickWand *wand)
+double compute_average_gray(MagickWand *wand)
 {
 
     PixelIterator *iterator;
