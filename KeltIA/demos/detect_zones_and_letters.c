@@ -1,4 +1,5 @@
-#include "../include/detect_zones/detect_letters.h"
+// #include "../include/detect_zones/detect_letters.h"
+#include "../include/detect_zones/detect_char.h"
 #include "../include/detect_zones/detect_zones.h"
 #include <err.h>
 #include <sys/stat.h>
@@ -27,14 +28,14 @@ int main(int argc, char *argv[])
 
     // Detect characters in the grid
     int grid_chars = 0;
-    CharBBox *grid_characters = detect_letters(
+    CharBBox *grid_characters = detect_characters(
         wand, ez.grid.x_min, ez.grid.y_min, ez.grid.x_max - ez.grid.x_min,
         ez.grid.y_max - ez.grid.y_min, &grid_chars
     );
 
     // Detect words int the list
     int words_chars = 0;
-    CharBBox *words_characters = detect_letters(
+    CharBBox *words_characters = detect_characters(
         wand, ez.words.x_min, ez.words.y_min, ez.words.x_max - ez.words.x_min,
         ez.words.y_max - ez.words.y_min, &words_chars
     );

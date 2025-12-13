@@ -1,5 +1,126 @@
 #include "../../include/detect_zones/detect_char.h"
 #include "../../include/detect_zones/detect_zones.h"
+#include <stdlib.h>
+#include <string.h>
+
+// Helper function to calculate median width
+static int calculate_median_width(CharBBox *characters, int count)
+{
+    if (count == 0) return 0;
+
+    // Copy widths to array for sorting
+    int *widths = malloc(count * sizeof(int));
+    for (int i = 0; i < count; i++) { widths[i] = characters[i].w; }
+
+    // Simple bubble sort (good enough for small arrays)
+    for (int i = 0; i < count - 1; i++)
+    {
+        for (int j = 0; j < count - i - 1; j++)
+        {
+            if (widths[j] > widths[j + 1])
+            {
+                int temp = widths[j];
+                widths[j] = widths[j + 1];
+                widths[j + 1] = temp;
+            }
+        }
+    }
+
+    // Get median
+    int median = widths[count / 2];
+    free(widths);
+
+    return median;
+}
+
+// Split wide characters that are likely grouped letters
+static CharBBox *split_grouped_letters(
+    CharBBox *characters,
+    int *char_count,
+    float threshold_multiplier
+)
+{
+    if (*char_count == 0) return characters;
+
+    // Calculate median width
+    int median_width = calculate_median_width(characters, *char_count);
+
+    if (median_width == 0) return characters;
+
+    printf("  Median width: %d pixels\n", median_width);
+    printf(
+        "  Threshold for splitting: %.1f x median = %.1f pixels\n",
+        threshold_multiplier, threshold_multiplier * median_width
+    );
+
+    // Count how many splits we need
+    int new_count = *char_count;
+    for (int i = 0; i < *char_count; i++)
+    {
+        float width_ratio = (float)characters[i].w / (float)median_width;
+        if (width_ratio > threshold_multiplier)
+        {
+            // Estimate number of letters in this group
+            int estimated_letters = (int)(width_ratio + 0.5);  // Round
+            if (estimated_letters < 2) estimated_letters = 2;
+
+            // Add extra slots for split letters (minus 1 because original
+            // exists)
+            new_count += (estimated_letters - 1);
+        }
+    }
+
+    // Allocate new array if we need splits
+    if (new_count > *char_count)
+    {
+        CharBBox *new_characters = malloc(new_count * sizeof(CharBBox));
+        int write_index = 0;
+
+        for (int i = 0; i < *char_count; i++)
+        {
+            float width_ratio = (float)characters[i].w / (float)median_width;
+
+            if (width_ratio > threshold_multiplier)
+            {
+                // Split this character
+                int estimated_letters = (int)(width_ratio + 0.5);
+                if (estimated_letters < 2) estimated_letters = 2;
+
+                int sub_width = characters[i].w / estimated_letters;
+
+                printf(
+                    "  Splitting char #%d: width=%d (%.1fx median) into %d "
+                    "letters of %d pixels each\n",
+                    i, characters[i].w, width_ratio, estimated_letters,
+                    sub_width
+                );
+
+                // Create sub-bboxes
+                for (int j = 0; j < estimated_letters; j++)
+                {
+                    new_characters[write_index].x =
+                        characters[i].x + (j * sub_width);
+                    new_characters[write_index].y = characters[i].y;
+                    new_characters[write_index].w = sub_width;
+                    new_characters[write_index].h = characters[i].h;
+                    write_index++;
+                }
+            }
+            else
+            {
+                // Keep original
+                new_characters[write_index] = characters[i];
+                write_index++;
+            }
+        }
+
+        free(characters);
+        *char_count = write_index;
+        return new_characters;
+    }
+
+    return characters;
+}
 
 void flood_fill(
     MagickWand *wand,
@@ -64,7 +185,7 @@ void flood_fill(
                     continue;
                 if (visited[new_local_y * width + new_local_x]) continue;
 
-                // Add to stack if black pixel found (absolues)
+                // Add to stack if black pixel found (absolutes)
                 if (is_pixel_black(wand, new_abs_x, new_abs_y, pixel_wand))
                 {
                     visited[new_local_y * width + new_local_x] = 1;
@@ -146,6 +267,11 @@ CharBBox *detect_characters(
     free(visited);
     DestroyPixelWand(pixel_wand);
 
+    // POST-PROCESSING: Split grouped letters
+    printf("  Before splitting: %d characters\n", *char_count);
+    characters = split_grouped_letters(characters, char_count, 1.5);
+    printf("  After splitting: %d characters\n", *char_count);
+
     return characters;
 }
 
@@ -206,15 +332,14 @@ int save_charbbox_as_bitmap(MagickWand *wand, CharBBox bbox, const char *path)
     // calculate scaling
     double scale_w = (double)TARGET_SIZE / orig_width;
     double scale_h = (double)TARGET_SIZE / orig_height;
-    double scale = fmin(scale_w, scale_h);  // Usar el menor para que quepa
+    double scale = fmin(scale_w, scale_h);
 
     size_t new_width = (size_t)(orig_width * scale);
     size_t new_height = (size_t)(orig_height * scale);
 
-    // Redimention only if necesary
+    // Resize only if necessary
     if (new_width != orig_width || new_height != orig_height)
     {
-        // MagickResizeImage con LanczosFilter para mejor calidad
         MagickResizeImage(letter, new_width, new_height, LanczosFilter);
     }
 
@@ -253,7 +378,7 @@ double *charbbox_to_cnn_input(MagickWand *wand, CharBBox bbox)
     // Calculate scaling
     double scale_w = (double)TARGET_SIZE / orig_width;
     double scale_h = (double)TARGET_SIZE / orig_height;
-    double scale = fmin(scale_w, scale_h);  // Use smaller to fit
+    double scale = fmin(scale_w, scale_h);
 
     size_t new_width = (size_t)(orig_width * scale);
     size_t new_height = (size_t)(orig_height * scale);
@@ -312,5 +437,5 @@ double *charbbox_to_cnn_input(MagickWand *wand, CharBBox bbox)
 
     free(pixels);
 
-    return normalized;  // Returns 784 doubles [0, 1] ready for CNN
+    return normalized;
 }
