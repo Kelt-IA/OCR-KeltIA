@@ -49,7 +49,7 @@ void init_window(int *argc, char ***argv)
     // Destroy stop the program when main window is destroyed
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
-    callback_init(builder);
+    callback_init(builder, window);
 
     gtk_widget_show_all(window);
     gtk_widget_realize(window);
