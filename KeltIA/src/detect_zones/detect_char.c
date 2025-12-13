@@ -476,50 +476,65 @@ double *charbbox_to_cnn_input(MagickWand *wand, CharBBox bbox)
     MagickWand *letter = extract_zone(wand, bbox.x, bbox.y, bbox.w, bbox.h);
     if (letter == NULL) return NULL;
 
+    // STEP 1: Convert to grayscale FIRST
+    MagickSetImageColorspace(letter, GRAYColorspace);
+    MagickSetImageType(letter, GrayscaleType);
+
     // Get dimensions
     size_t orig_width = MagickGetImageWidth(letter);
     size_t orig_height = MagickGetImageHeight(letter);
 
-    // Calculate scaling
-    double scale_w = (double)TARGET_SIZE / orig_width;
-    double scale_h = (double)TARGET_SIZE / orig_height;
-    double scale = fmin(scale_w, scale_h);
+    // STEP 2: Calculate scaling to fit in 22x22 (same as training)
+    size_t target_size = 22;
+    double scale_w = (double)target_size / orig_width;
+    double scale_h = (double)target_size / orig_height;
+    double scale = (scale_w < scale_h) ? scale_w : scale_h;
+
+    if (scale > 1.0) scale = 1.0;  // Don't scale up
 
     size_t new_width = (size_t)(orig_width * scale);
     size_t new_height = (size_t)(orig_height * scale);
 
-    // Resize only if necessary
+    if (new_width > target_size) new_width = target_size;
+    if (new_height > target_size) new_height = target_size;
+
+    // STEP 3: Resize if needed
     if (new_width != orig_width || new_height != orig_height)
     {
         MagickResizeImage(letter, new_width, new_height, LanczosFilter);
     }
 
-    // White background
-    PixelWand *bg_color = NewPixelWand();
-    PixelSetColor(bg_color, "white");
-    MagickSetImageBackgroundColor(letter, bg_color);
-    DestroyPixelWand(bg_color);
+    // STEP 4: Create new 28x28 canvas with white background
+    MagickWand *canvas = NewMagickWand();
+    PixelWand *white = NewPixelWand();
+    PixelSetColor(white, "white");
+    MagickNewImage(canvas, 28, 28, white);
+    DestroyPixelWand(white);
 
-    MagickSetGravity(letter, CenterGravity);
+    // STEP 5: Center the resized image with padding
+    ssize_t x_offset = (28 - new_width) / 2;
+    ssize_t y_offset = (28 - new_height) / 2;
 
-    ssize_t offset_x = (TARGET_SIZE - new_width) / 2;
-    ssize_t offset_y = (TARGET_SIZE - new_height) / 2;
+    // Composite the resized image onto the white canvas
+    MagickCompositeImage(
+        canvas, letter, OverCompositeOp, MagickTrue, x_offset, y_offset
+    );
 
-    MagickExtentImage(letter, TARGET_SIZE, TARGET_SIZE, -offset_x, -offset_y);
+    DestroyMagickWand(letter);  // Don't need original anymore
 
-    // Export pixels to array
+    // STEP 6: Export pixels
     uint8_t *pixels = malloc(TARGET_SIZE * TARGET_SIZE * sizeof(uint8_t));
     if (!pixels)
     {
-        DestroyMagickWand(letter);
+        DestroyMagickWand(canvas);
         return NULL;
     }
 
     MagickBooleanType status = MagickExportImagePixels(
-        letter, 0, 0, TARGET_SIZE, TARGET_SIZE, "I", CharPixel, pixels
+        canvas, 0, 0, TARGET_SIZE, TARGET_SIZE, "I", CharPixel, pixels
     );
 
-    DestroyMagickWand(letter);
+    DestroyMagickWand(canvas);
 
     if (status == MagickFalse)
     {
@@ -541,6 +556,5 @@ double *charbbox_to_cnn_input(MagickWand *wand, CharBBox bbox)
     }
 
     free(pixels);
-
     return normalized;
 }
