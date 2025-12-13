@@ -31,7 +31,7 @@ for input_file in ressources/images_test/*.png; do
         
         # Run preprocessing (adjust command to your executable name)
         # Add -removenoise flag if you want noise reduction
-        if ./bin/preprocessing "$input_file" "$output_file" -removenoise; then
+        if ./bin/preprocessing "$input_file" "$output_file"; then
             echo "  ✓ Success"
             ((PROCESSED++))
         else
