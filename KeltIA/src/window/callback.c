@@ -1,9 +1,5 @@
 #include "../../include/window/callback.h"
 #include "../../include/window/utils.h"
-<<<<<<< HEAD
-=======
-#include "gtk/gtk.h"
->>>>>>> f44382f (linked callback)
 
 GtkBuilder *builder = NULL;
 GtkWidget *window = NULL;
