@@ -46,6 +46,8 @@ void init_window(int *argc, char ***argv)
         return;
     }
 
+    gtk_window_set_title(GTK_WINDOW(window), "KeltIA - OCR Hidden Word Solver");
+
     // Destroy stop the program when main window is destroyed
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 

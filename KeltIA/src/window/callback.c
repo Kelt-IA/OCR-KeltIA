@@ -1,5 +1,6 @@
 #include "../../include/window/callback.h"
 #include "../../include/window/utils.h"
+#include "gtk/gtk.h"
 
 GtkBuilder *builder = NULL;
 GtkWidget *window = NULL;
@@ -15,6 +16,10 @@ GtkWidget *load_nn_btn = NULL;
 char *nn = NULL;
 
 GtkWidget *solve_btn = NULL;
+
+GtkWidget *training_btn = NULL;
+GtkWidget *training_win = NULL;
+int train_running = 0;
 
 void callback_init(GtkBuilder *b, GtkWidget *w)
 {
@@ -56,6 +61,14 @@ void callback_init(GtkBuilder *b, GtkWidget *w)
         errx(EXIT_FAILURE, "Could not find solve btn");
 
     g_signal_connect(solve_btn, "clicked", G_CALLBACK(on_solve), NULL);
+
+    if (!(training_btn =
+              GTK_WIDGET(gtk_builder_get_object(builder, "open_training_btn"))))
+        errx(EXIT_FAILURE, "Could not find training btn");
+
+    g_signal_connect(
+        training_btn, "clicked", G_CALLBACK(on_open_training), NULL
+    );
 }
 
 void on_autorotate_check(GtkToggleButton *toggle_button, gpointer user_data)
@@ -176,4 +189,38 @@ void on_open_training(GtkButton *btn, gpointer user_data)
 {
     (void)btn;
     (void)user_data;
+
+    if (training_win)
+    {
+        gtk_widget_show_all(training_win);
+        gtk_window_present(GTK_WINDOW(training_win));
+        return;
+    }
+
+    training_win =
+        GTK_WIDGET(gtk_builder_get_object(builder, "training_window"));
+
+    gtk_window_set_title(GTK_WINDOW(training_win), "KeltIA - NN Training Mode");
+
+    g_signal_connect(
+        training_win, "delete-event",
+        G_CALLBACK(on_training_window_delete_event), NULL
+    );
+    gtk_widget_show_all(training_win);
+}
+
+gboolean on_training_window_delete_event(
+    GtkWidget *widget,
+    GdkEvent *event,
+    gpointer user_data
+)
+{
+    (void)user_data;
+    (void)widget;
+    (void)event;
+
+    gtk_widget_hide(training_win);
+
+    train_running = 0;
+    return TRUE;
 }

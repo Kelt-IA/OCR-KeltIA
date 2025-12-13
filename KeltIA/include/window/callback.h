@@ -10,3 +10,8 @@ void on_open_nn(GtkButton *btn, gpointer user_data);
 // void on_save(GtkButton *btn, gpointer user_data);
 void on_solve(GtkButton *btn, gpointer user_data);
 void on_open_training(GtkButton *btn, gpointer user_data);
+gboolean on_training_window_delete_event(
+    GtkWidget *widget,
+    GdkEvent *event,
+    gpointer user_data
+);
