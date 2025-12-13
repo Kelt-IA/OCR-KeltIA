@@ -1,6 +1,5 @@
 #include "../../include/window/callback.h"
 #include "../../include/window/utils.h"
-#include "gtk/gtk.h"
 
 GtkBuilder *builder = NULL;
 GtkWidget *window = NULL;
