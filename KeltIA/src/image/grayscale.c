@@ -120,6 +120,26 @@ double compute_average_gray(MagickWand *wand)
 //     return MagickTrue;
 // }
 
+// New function: Load and convert to grayscale only, return MagickWand
+MagickWand *grayscale_image_wand(const char *input_path)
+{
+    MagickWand *wand = NULL;
+
+    wand = NewMagickWand();
+    if (MagickReadImage(wand, input_path) == MagickFalse)
+    {
+        fprintf(stderr, "Error: unable to read '%s'\n", input_path);
+        DestroyMagickWand(wand);
+        return NULL;
+    }
+
+    // Convert to grayscale only
+    MagickSetImageType(wand, GrayscaleType);
+
+    // Return the wand (grayscale image in memory)
+    return wand;
+}
+
 // New function: Load and binarize image, return MagickWand (NO file output)
 MagickWand *binarize_image_wand(const char *input_path)
 {
