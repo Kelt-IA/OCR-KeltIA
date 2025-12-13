@@ -101,8 +101,6 @@ void train_nn(
                 );
             }
         }
-
-        printf("\n");
     }
 
     // Cleanup

@@ -33,6 +33,102 @@ static int calculate_median_width(CharBBox *characters, int count)
     return median;
 }
 
+// Helper function to calculate median height
+static int calculate_median_height(CharBBox *characters, int count)
+{
+    if (count == 0) return 0;
+
+    // Copy heights to array for sorting
+    int *heights = malloc(count * sizeof(int));
+    for (int i = 0; i < count; i++) { heights[i] = characters[i].h; }
+
+    // Simple bubble sort
+    for (int i = 0; i < count - 1; i++)
+    {
+        for (int j = 0; j < count - i - 1; j++)
+        {
+            if (heights[j] > heights[j + 1])
+            {
+                int temp = heights[j];
+                heights[j] = heights[j + 1];
+                heights[j + 1] = temp;
+            }
+        }
+    }
+
+    // Get median
+    int median = heights[count / 2];
+    free(heights);
+
+    return median;
+}
+
+// Remove tiny noise characters that are way smaller than median
+static CharBBox *remove_tiny_characters(
+    CharBBox *characters,
+    int *char_count,
+    float min_size_ratio
+)
+{
+    if (*char_count == 0) return characters;
+
+    // Calculate median width and height
+    int median_width = calculate_median_width(characters, *char_count);
+    int median_height = calculate_median_height(characters, *char_count);
+
+    if (median_width == 0 || median_height == 0) return characters;
+
+    int min_width = (int)(median_width * min_size_ratio);
+    int min_height = (int)(median_height * min_size_ratio);
+
+    printf("  Median size: %dx%d pixels\n", median_width, median_height);
+    printf(
+        "  Minimum size threshold: %dx%d pixels (%.0f%% of median)\n",
+        min_width, min_height, min_size_ratio * 100
+    );
+
+    // Count how many valid characters we have
+    int valid_count = 0;
+    for (int i = 0; i < *char_count; i++)
+    {
+        if (characters[i].w >= min_width && characters[i].h >= min_height)
+        {
+            valid_count++;
+        }
+        else
+        {
+            printf(
+                "  Removing tiny char #%d: size %dx%d (too small)\n", i,
+                characters[i].w, characters[i].h
+            );
+        }
+    }
+
+    if (valid_count == *char_count)
+    {
+        // No characters to remove
+        return characters;
+    }
+
+    // Create new array with only valid characters
+    CharBBox *filtered = malloc(valid_count * sizeof(CharBBox));
+    int write_index = 0;
+
+    for (int i = 0; i < *char_count; i++)
+    {
+        if (characters[i].w >= min_width && characters[i].h >= min_height)
+        {
+            filtered[write_index] = characters[i];
+            write_index++;
+        }
+    }
+
+    free(characters);
+    *char_count = valid_count;
+
+    return filtered;
+}
+
 // Split wide characters that are likely grouped letters
 static CharBBox *split_grouped_letters(
     CharBBox *characters,
@@ -267,10 +363,18 @@ CharBBox *detect_characters(
     free(visited);
     DestroyPixelWand(pixel_wand);
 
-    // POST-PROCESSING: Split grouped letters
+    // POST-PROCESSING 1: Remove tiny noise characters
+    printf("\n  === Post-processing: Remove Tiny Characters ===\n");
+    printf("  Before filtering: %d characters\n", *char_count);
+    characters =
+        remove_tiny_characters(characters, char_count, 0.20);  // 20% threshold
+    printf("  After filtering: %d characters\n", *char_count);
+
+    // POST-PROCESSING 2: Split grouped letters
+    printf("\n  === Post-processing: Split Grouped Letters ===\n");
     printf("  Before splitting: %d characters\n", *char_count);
-    characters = split_grouped_letters(characters, char_count, 1.5);
-    printf("  After splitting: %d characters\n", *char_count);
+    characters = split_grouped_letters(characters, char_count, 1.8);
+    printf("  After splitting: %d characters\n\n", *char_count);
 
     return characters;
 }
