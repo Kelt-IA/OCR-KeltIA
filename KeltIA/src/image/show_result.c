@@ -1,4 +1,5 @@
 #include "../../include/image/show_result.h"
+#include <stdio.h>
 
 void show_result(
     CharBBox **grid,
@@ -9,37 +10,59 @@ void show_result(
     MagickWand *wand
 )
 {
-    // Check if words array exists
     if (!words) return;
 
-    // Iterate through null-terminated array
-    for (int i = 0; words[i] != NULL; i++)  // ← FIX: Check if words[i] is NULL
+    for (int i = 0; words[i] != NULL; i++)
     {
         WordPos *pos = solver(
-            char_grid, height, width,
-            (const char *)words[i],  // ← Use words[i] directly
-            strlen(words[i])
+            char_grid, height, width, (const char *)words[i], strlen(words[i])
         );
 
-        if (pos) { draw_word_box(grid, pos, wand); }
+        if (pos) { draw_word_box(grid, pos, wand, width, height); }
     }
-
-    // Don't free words here! The caller should do it
-    // Because you're not freeing the individual words anymore
 }
 
-void draw_word_box(CharBBox **grid, WordPos *pos, MagickWand *wand)
+void draw_word_box(
+    CharBBox **grid,
+    WordPos *pos,
+    MagickWand *wand,
+    int width,
+    int height
+)
 {
+    // Validate coordinates are within bounds
+    if (pos->y1 < 0 || pos->y1 >= height || pos->y2 < 0 || pos->y2 >= height ||
+        pos->x1 < 0 || pos->x1 >= width || pos->x2 < 0 || pos->x2 >= width)
+    {
+        fprintf(
+            stderr,
+            "Warning: WordPos coordinates out of bounds: "
+            "(%d,%d) to (%d,%d), grid is %dx%d\n",
+            pos->x1, pos->y1, pos->x2, pos->y2, width, height
+        );
+        free(pos);
+        return;
+    }
+
     CharBBox *start = grid[pos->y1] + pos->x1;
     CharBBox *end = grid[pos->y2] + pos->x2;
+
+    printf(
+        "Creating line frome %f %f to %f %f\n", start->x + (double)start->w / 2,
+        start->y + (double)start->h / 2, end->x + (double)end->w / 2,
+        end->y + (double)end->h / 2
+    );
+
     free(pos);
-    draw_rotated_rectangle_diagonal(
-        wand, start->x + (double)start->w / 2, start->y + (double)start->h / 2,
-        end->x + (double)end->w / 2, end->y + (double)end->h / 2, 10
+    draw_line_between_letters(
+        wand, start->x + (int)((double)start->w / 2),
+        start->y + (int)((double)start->h / 2),
+        end->x + (int)((double)end->w / 2), end->y + (int)((double)end->h / 2),
+        5
     );
 }
 
-void draw_rotated_rectangle_diagonal(
+void draw_line_between_letters(
     MagickWand *image_wand,
     double x1,
     double y1,
@@ -50,54 +73,26 @@ void draw_rotated_rectangle_diagonal(
 {
     DrawingWand *draw_wand;
     PixelWand *stroke, *fill;
-    PointInfo points[4];
-    double dx, dy, length, half_w;
 
-    /* Create drawing wand and colors */
     draw_wand = NewDrawingWand();
     stroke = NewPixelWand();
     fill = NewPixelWand();
 
-    /* Example colors: red outline, transparent fill */
     PixelSetColor(stroke, "red");
     PixelSetColor(fill, "none");
+
     DrawSetStrokeColor(draw_wand, stroke);
-    DrawSetStrokeWidth(draw_wand, 1.0); /* outline width */
     DrawSetFillColor(draw_wand, fill);
+    DrawSetStrokeWidth(draw_wand, thickness);
+    DrawSetStrokeAntialias(draw_wand, MagickTrue);
+    DrawSetStrokeOpacity(draw_wand, 1.0);
+    DrawSetStrokeLineCap(draw_wand, RoundCap);
 
-    dx = x2 - x1;
-    dy = y2 - y1;
-    length = sqrt(dx * dx + dy * dy);
+    DrawPathStart(draw_wand);
+    DrawPathMoveToAbsolute(draw_wand, x1, y1);
+    DrawPathLineToAbsolute(draw_wand, x2, y2);
+    DrawPathFinish(draw_wand);
 
-    if (length == 0.0)
-    {
-        /* Avoid division by zero */
-        DestroyPixelWand(stroke);
-        DestroyPixelWand(fill);
-        DestroyDrawingWand(draw_wand);
-        return;
-    }
-
-    half_w = thickness / 2.0;
-
-    /* perpendicular unit vector */
-    double px = -dy / length;
-    double py = dx / length;
-
-    /* Four corners of the rectangle */
-    points[0].x = x1 + px * half_w;
-    points[0].y = y1 + py * half_w;
-    points[1].x = x2 + px * half_w;
-    points[1].y = y2 + py * half_w;
-    points[2].x = x2 - px * half_w;
-    points[2].y = y2 - py * half_w;
-    points[3].x = x1 - px * half_w;
-    points[3].y = y1 - py * half_w;
-
-    /* Draw polygon (4 points) on the drawing wand */
-    DrawPolygon(draw_wand, 4, points);
-
-    /* Apply drawing operations to the image */
     MagickDrawImage(image_wand, draw_wand);
 
     DestroyPixelWand(stroke);

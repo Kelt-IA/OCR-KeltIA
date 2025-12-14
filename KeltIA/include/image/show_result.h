@@ -10,8 +10,14 @@ void show_result(
     char **words,
     MagickWand *wand
 );
-void draw_word_box(CharBBox **grid, WordPos *pos, MagickWand *wand);
-void draw_rotated_rectangle_diagonal(
+void draw_word_box(
+    CharBBox **grid,
+    WordPos *pos,
+    MagickWand *wand,
+    int width,
+    int height
+);
+void draw_line_between_letters(
     MagickWand *image_wand,
     double x1,
     double y1,
