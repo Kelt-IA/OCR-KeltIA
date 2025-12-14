@@ -1,4 +1,4 @@
-#include "../include/image/apply_treatment.h"
+#include "../include/image/treatment.h"
 #include <MagickWand/MagickWand.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,8 +24,10 @@ int main(int argc, char *argv[])
     printf("Image: %s\n\n", image_path);
 
     // Test 1: Grayscale + binarisation + suppression bruit, pas de rotation
-    printf("Test 1: Grayscale + binarisation + suppression bruit, pas de "
-           "rotation\n");
+    printf(
+        "Test 1: Grayscale + binarisation + suppression bruit, pas de "
+        "rotation\n"
+    );
     ProcessedImages *result1 = process_image(image_path, 0, 1, 1, 0, 66.0);
     if (result1)
     {
