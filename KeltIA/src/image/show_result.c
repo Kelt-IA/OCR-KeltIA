@@ -19,6 +19,7 @@ void show_result(
         if (pos) draw_word_box(grid, pos, wand);
 
         free(*w);
+        w++;
     }
 
     free(words);
