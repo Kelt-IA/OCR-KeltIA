@@ -17,6 +17,7 @@ static void *training_thread_func(void *arg)
     if (!state->image_data)
     {
         atomic_store(&state->is_training, false);
+        state->config.stop_cb();
         return NULL;
     }
 
@@ -26,6 +27,7 @@ static void *training_thread_func(void *arg)
     {
         free_image_data(state->image_data);
         atomic_store(&state->is_training, false);
+        state->config.stop_cb();
         return NULL;
     }
 
@@ -42,6 +44,7 @@ static void *training_thread_func(void *arg)
             free_dataset(state->dataset);
             free_image_data(state->image_data);
             atomic_store(&state->is_training, false);
+            state->config.stop_cb();
             return NULL;
         }
     }
@@ -59,6 +62,7 @@ static void *training_thread_func(void *arg)
             free_dataset(state->dataset);
             free_image_data(state->image_data);
             atomic_store(&state->is_training, false);
+            state->config.stop_cb();
             return NULL;
         }
 
@@ -72,6 +76,7 @@ static void *training_thread_func(void *arg)
             free_dataset(state->dataset);
             free_image_data(state->image_data);
             atomic_store(&state->is_training, false);
+            state->config.stop_cb();
             return NULL;
         }
 
@@ -91,6 +96,7 @@ static void *training_thread_func(void *arg)
             free_dataset(state->dataset);
             free_image_data(state->image_data);
             atomic_store(&state->is_training, false);
+            state->config.stop_cb();
             return NULL;
         }
     }
@@ -145,6 +151,7 @@ static void *training_thread_func(void *arg)
     save_nn(final_path, state->nn);
 
     atomic_store(&state->is_training, false);
+    state->config.stop_cb();
     return NULL;
 }
 

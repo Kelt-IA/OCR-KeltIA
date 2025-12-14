@@ -15,6 +15,7 @@ typedef struct
     int max_epochs;        // Maximum epochs to train
     int save_interval;     // Save model every N epochs
     void (*callback)(EvaluationMetrics *metrics);  // UI callback
+    void (*stop_cb)();                             // Stop CB
 } TrainingConfig;
 
 // Training state (thread-safe)

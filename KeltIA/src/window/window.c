@@ -5,6 +5,8 @@ extern GResource *keltia_get_resource(void);
 
 void init_window(int *argc, char ***argv)
 {
+    MagickWandGenesis();
+
     GtkBuilder *builder = NULL;
     GtkWidget *window = NULL;
     GError *error = NULL;
