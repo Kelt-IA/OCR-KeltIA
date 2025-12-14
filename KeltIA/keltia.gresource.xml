@@ -2,6 +2,7 @@
 <gresources>
   <gresource prefix="/org/keltia">
     <file compressed="false">ressources/window_design_keltia.glade</file>
+    <file compressed="false">ressources/training_window.glade</file>
     <file compressed="false">ressources/KeltIA_logo.png</file>
   </gresource>
 </gresources>
