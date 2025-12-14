@@ -4,79 +4,115 @@
 #include <MagickWand/MagickWand.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int main(int argc, char **argv)
 {
-    if (argc != 3)
+    if (argc < 3)
     {
-        fprintf(stderr, "Usage: %s <input_image> <output_image>\n", argv[0]);
+        fprintf(
+            stderr, "Usage: %s <input_image> <output_image> [-removenoise]\n",
+            argv[0]
+        );
+        fprintf(
+            stderr,
+            "Applies grayscale binarization and optionally noise reduction.\n"
+        );
         return 1;
     }
 
     const char *input_path = argv[1];
     const char *output_path = argv[2];
+    int apply_removenoise = 0;
+
+    for (int i = 3; i < argc; i++)
+    {
+        if (strcmp(argv[i], "-removenoise") == 0) { apply_removenoise = 1; }
+        else
+        {
+            fprintf(stderr, "Warning: unknown option '%s' ignored.\n", argv[i]);
+        }
+    }
 
     MagickWandGenesis();
 
-    printf("=== Image Preprocessing Pipeline ===\n");
-    printf("Input: %s\n", input_path);
-    printf("Output: %s\n\n", output_path);
-
-    // Step 1: Binarization (Otsu threshold)
-    printf("=== [1/3] Otsu Binarization ===\n");
-    MagickWand *wand = binarize_image_wand(input_path);
+    MagickWand *wand = read_image(input_path);
     if (!wand)
     {
-        fprintf(stderr, "Error: binarization failed\n");
+        fprintf(stderr, "Error: unable to read input image.\n");
         MagickWandTerminus();
         return 1;
     }
-    printf("  Binarization completed\n\n");
 
-    // Step 2: Noise removal
-    printf("=== [2/3] Noise Removal ===\n");
-    MagickWand *clean = remove_noise(wand);
-    if (!clean)
+    // Step 1: Binarization (grayscale)
+    printf("=== [1/3] Binarization / Grayscale ===\n");
+    MagickSetImageType(wand, GrayscaleType);
+
+    double avg_gray = compute_average_gray(wand);
+    double quantum_range = (double)QuantumRange;
+    double threshold_value = avg_gray * quantum_range;
+
+    printf(
+        "→ Automatic threshold: %.3f (%.0f out of %.0f)\n", avg_gray,
+        threshold_value, quantum_range
+    );
+
+    if (MagickThresholdImage(wand, threshold_value) == MagickFalse)
     {
-        fprintf(stderr, "Error: noise removal failed\n");
+        fprintf(stderr, "Error: thresholding failed.\n");
         DestroyMagickWand(wand);
         MagickWandTerminus();
         return 1;
     }
-    printf("  Noise removal completed\n\n");
 
-    // Free original wand, work with clean one
-    DestroyMagickWand(wand);
+    // Step 2: Optional Noise Reduction (AFTER binarization)
+    if (apply_removenoise)
+    {
+        printf("=== [2/3] Noise Reduction ===\n");
+        MagickWand *clean = clean_binary_image(wand);
+        if (!clean)
+        {
+            fprintf(stderr, "Error: noise reduction failed.\n");
+            DestroyMagickWand(wand);
+            MagickWandTerminus();
+            return 1;
+        }
+        DestroyMagickWand(wand);
+        wand = clean;
+    }
+    else
+    {
+        printf("Skipping noise reduction (use -removenoise to enable it).\n");
+    }
 
     // Step 3: Auto-rotation
     printf("=== [3/3] Auto-rotation ===\n");
-    MagickWand *rotated = auto_rotate_image(clean);
+    MagickWand *rotated = auto_rotate_image(wand);
     if (!rotated)
     {
-        fprintf(stderr, "Error: auto-rotation failed\n");
-        DestroyMagickWand(clean);
+        fprintf(stderr, "Error: auto-rotation failed.\n");
+        DestroyMagickWand(wand);
         MagickWandTerminus();
         return 1;
     }
-    printf("  Auto-rotation completed\n\n");
+    printf("✓ Auto-rotation completed\n");
+    DestroyMagickWand(wand);
 
-    // Free clean wand, work with rotated one
-    DestroyMagickWand(clean);
-
-    // Save final result
-    printf("=== Saving Final Image ===\n");
+    // Save the final result (using rotated, not wand!)
     if (!write_image(rotated, output_path))
     {
-        fprintf(stderr, "Error: cannot write %s\n", output_path);
+        fprintf(
+            stderr, "Error: unable to write output image %s\n", output_path
+        );
         DestroyMagickWand(rotated);
         MagickWandTerminus();
         return 1;
     }
 
-    printf("Success! Saved to: %s\n", output_path);
-
     DestroyMagickWand(rotated);
-    MagickWandTerminus();
 
+    printf("Image correction completed successfully: %s\n", output_path);
+
+    MagickWandTerminus();
     return 0;
 }

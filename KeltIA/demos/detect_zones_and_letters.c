@@ -4,6 +4,19 @@
 #include <string.h>
 #include <sys/stat.h>
 
+const char *extract_filename(const char *path)
+{
+    if (path == NULL) { return NULL; }
+
+    const char *last_slash = strrchr(path, '/');
+
+    // If no slash found, return the entire string
+    if (last_slash == NULL) { return path; }
+
+    // Return everything after the last slash
+    return last_slash + 1;
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 3 || argc > 4)
@@ -18,6 +31,15 @@ int main(int argc, char *argv[])
 
     const char *input_path = argv[1];
     const char *output_path = argv[2];
+
+    char file_prefix[256];
+    const char *filename = extract_filename(input_path);
+    strncpy(file_prefix, filename, sizeof(file_prefix) - 1);
+    file_prefix[sizeof(file_prefix) - 1] = '\0';
+
+    // Remove extension
+    char *dot = strrchr(file_prefix, '.');
+    if (dot) { *dot = '\0'; }
 
     // Check for --save flag
     int save_characters = 0;
@@ -74,8 +96,8 @@ int main(int argc, char *argv[])
         {
             char filepath[512];
             snprintf(
-                filepath, sizeof(filepath), "%s/grid_char_%03d.bmp",
-                output_dir_grid, i
+                filepath, sizeof(filepath), "%s/%s_grid_char_%03d.bmp",
+                output_dir_grid, file_prefix, i
             );
 
             int result =
@@ -108,10 +130,11 @@ int main(int argc, char *argv[])
         int saved_words = 0;
         for (int i = 0; i < words_chars; i++)
         {
+
             char filepath[512];
             snprintf(
-                filepath, sizeof(filepath), "%s/word_char_%03d.bmp",
-                output_dir_list, i
+                filepath, sizeof(filepath), "%s/%s_word_char_%03d.bmp",
+                output_dir_list, file_prefix, i
             );
 
             int result =
