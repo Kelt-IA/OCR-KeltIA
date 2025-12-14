@@ -1,40 +1,33 @@
 CC = gcc
 
 MAGICK_CFLAGS := $(shell pkg-config --cflags MagickWand)
-MAGICK_LIBS   := $(shell pkg-config --libs   MagickWand)
-GTK_CFLAGS 		:= $(shell pkg-config --cflags gtk+-3.0)
-GTK_LIBS			:= $(shell pkg-config --libs   gtk+-3.0)
+MAGICK_LIBS := $(shell pkg-config --libs MagickWand)
+GTK_CFLAGS := $(shell pkg-config --cflags gtk+-3.0)
+GTK_LIBS := $(shell pkg-config --libs gtk+-3.0)
 
 CFLAGS = -Iinclude -Wall -Wextra -Werror -g -O2 $(MAGICK_CFLAGS) $(GTK_CFLAGS)
-LDFLAGS = -lm -fsanitize=address $(MAGICK_LIBS) $(GTK_LIBS) $(OPENBLAS_LIBS)
 
-# GTK create memory leaks unrelated to our code
-# So we need separeted linker arguments for window demo
-WINDOW_LDFLAGS = -lm $(MAGICK_LIBS) $(GTK_LIBS) $(OPENBLAS_LIBS)
+# Use same linker flags as window (no fsanitize for GTK)
+LDFLAGS = -lm $(MAGICK_LIBS) $(GTK_LIBS) $(OPENBLAS_LIBS)
 
 SRC_DIR := src
 BUILD_DIR := build
-BINS_DIR := demos
 BIN_DIR := bin
 
-# Automatically find all executables in demos/
-BIN_NAMES := $(patsubst $(BINS_DIR)/%.c,%,$(wildcard $(BINS_DIR)/*.c))
-BINS := $(addprefix $(BIN_DIR)/,$(BIN_NAMES))
-
-# Find all common code in src/ EXCEPT window.c
-SRCS := $(shell find $(SRC_DIR) -name '*.c' ! -path '*/window/window.c')
+# Find all source files in src/ EXCEPT keltia.c
+SRCS := $(shell find $(SRC_DIR) -name '*.c' ! -path '*/keltia.c')
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
-# Window-specific object
-WINDOW_OBJ := $(BUILD_DIR)/window/window.o
-
-# GResource only for window
+# GResource files
 GRESOURCE_XML := keltia.gresource.xml
 GRESOURCE_C := $(BUILD_DIR)/resources.c
 GRESOURCE_H := $(BUILD_DIR)/resources.h
 RESOURCE_OBJ := $(BUILD_DIR)/resources.o
 
-all: $(BINS)
+# Target executable
+TARGET := $(BIN_DIR)/keltia
+
+all: $(TARGET)
 
 # Generate resources.c
 $(GRESOURCE_C): $(GRESOURCE_XML)
@@ -50,14 +43,9 @@ $(GRESOURCE_H): $(GRESOURCE_XML)
 $(RESOURCE_OBJ): $(GRESOURCE_C) $(GRESOURCE_H)
 	$(CC) $(CFLAGS) -c $(GRESOURCE_C) -o $@
 
-# Compile window.o separately
-$(WINDOW_OBJ): $(SRC_DIR)/window/window.c | $(BUILD_DIR)
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# IMPORTANT: Special rule for window
-$(BIN_DIR)/window: $(BINS_DIR)/window.c $(OBJS) $(WINDOW_OBJ) $(RESOURCE_OBJ) | $(BIN_DIR)
-	$(CC) $(CFLAGS) $< $(OBJS) $(WINDOW_OBJ) $(RESOURCE_OBJ) -o $@ $(WINDOW_LDFLAGS)
+# Build keltia executable from src/keltia.c
+$(TARGET): src/keltia.c $(OBJS) $(RESOURCE_OBJ) | $(BIN_DIR)
+	$(CC) $(CFLAGS) $< $(OBJS) $(RESOURCE_OBJ) -o $@ $(LDFLAGS)
 
 # Special compilation rules for NN files with CBLAS
 $(BUILD_DIR)/nn/layers.o: $(SRC_DIR)/nn/layers.c | $(BUILD_DIR)/nn
@@ -67,10 +55,6 @@ $(BUILD_DIR)/nn/layers.o: $(SRC_DIR)/nn/layers.c | $(BUILD_DIR)/nn
 $(BUILD_DIR)/nn/back-propagation.o: $(SRC_DIR)/nn/back-propagation.c | $(BUILD_DIR)/nn
 	@mkdir -p $(dir $@)
 	$(CC) -Iinclude -Wall -Wextra -Werror -g -O2 -c $< -o $@
-
-# Generic pattern rule
-$(BIN_DIR)/%: $(BINS_DIR)/%.c $(OBJS) | $(BIN_DIR)
-	$(CC) $(CFLAGS) $< $(OBJS) -o $@ $(LDFLAGS)
 
 # Pattern rule: compile any .c from src/ to .o
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
@@ -87,23 +71,8 @@ $(BUILD_DIR):
 $(BUILD_DIR)/nn:
 	@mkdir -p $(BUILD_DIR)/nn
 
-
-# Execution targets
-test: $(BIN_DIR)/tests
-	$(BIN_DIR)/tests
-
-test-solver: $(BIN_DIR)/solver
-	$(BIN_DIR)/solver ./ressources/grid horizontal
-	$(BIN_DIR)/solver ./ressources/grid vertical
-	$(BIN_DIR)/solver ./ressources/grid diagonal
-	$(BIN_DIR)/solver ./ressources/grid find
-	$(BIN_DIR)/solver ./ressources/grid hello
-	$(BIN_DIR)/solver ./ressources/grid world
-	$(BIN_DIR)/solver ./ressources/grid goldorak
-	$(BIN_DIR)/solver ./ressources/grid epita
-
 # Cleanup
 clean:
-	rm -rf $(BUILD_DIR) $(BIN_DIR) ressources/xor.nn
+	rm -rf $(BUILD_DIR) $(BIN_DIR)
 
-.PHONY: all test test-solver clean
+.PHONY: all clean

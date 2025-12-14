@@ -1,5 +1,4 @@
-#include "../include/window/window.h"
-#include <stdlib.h>
+#include "../include/keltia.h"
 
 int main(int argc, char *argv[])
 {
