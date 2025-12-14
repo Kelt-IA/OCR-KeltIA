@@ -19,9 +19,10 @@ GtkWidget *load_img_btn = NULL;
 char *img = NULL;
 
 GtkWidget *load_nn_btn = NULL;
-char *nn = NULL;
+char *nn_path = NULL;
 
 GtkWidget *solve_btn = NULL;
+GtkWidget *save_btn = NULL;
 
 GtkBuilder *training_builder = NULL;
 GtkWidget *training_btn = NULL;
@@ -41,6 +42,8 @@ GtkWidget *nn_label = NULL;
 GtkWidget *accuracy = NULL;
 GtkWidget *mse = NULL;
 GtkWidget *predictions = NULL;
+
+TrainingState *state = NULL;
 
 void callback_init(GtkBuilder *b, GtkWidget *w)
 {
@@ -86,6 +89,11 @@ void callback_init(GtkBuilder *b, GtkWidget *w)
         errx(EXIT_FAILURE, "Could not find solve btn");
 
     g_signal_connect(solve_btn, "clicked", G_CALLBACK(on_solve), NULL);
+
+    if (!(save_btn = GTK_WIDGET(gtk_builder_get_object(builder, "save_btn"))))
+        errx(EXIT_FAILURE, "Could not find save btn");
+
+    g_signal_connect(save_btn, "clicked", G_CALLBACK(on_save), NULL);
 
     if (!(training_btn =
               GTK_WIDGET(gtk_builder_get_object(builder, "open_training_btn"))))
@@ -211,15 +219,50 @@ void on_open_nn(GtkButton *btn, gpointer user_data)
 
         filename = gtk_file_chooser_get_filename(chooser);
 
-        if (nn) { g_free(nn); }
+        if (nn_path) { g_free(nn_path); }
 
-        nn = filename;
+        nn_path = filename;
     }
 
     gtk_widget_destroy(dialog);
 }
 
-void on_save() {}
+void on_save(GtkButton *btn, gpointer user_data)
+{
+    (void)btn;
+    (void)user_data;
+
+    if (!img) return;
+
+    GtkWindow *parent_window = GTK_WINDOW(window);  // Fenêtre parente
+    GtkWidget *dialog;
+    GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
+    gint res;
+
+    dialog = gtk_file_chooser_dialog_new(
+        "Save File", parent_window, action, "_Cancel", GTK_RESPONSE_CANCEL,
+        "_Save", GTK_RESPONSE_ACCEPT, NULL
+    );
+
+    GtkFileChooser *chooser = GTK_FILE_CHOOSER(dialog);
+    gtk_file_chooser_set_do_overwrite_confirmation(chooser, TRUE);
+
+    gtk_file_chooser_set_current_name(chooser, "solved_grid.pnd");
+
+    res = gtk_dialog_run(GTK_DIALOG(dialog));
+
+    if (res == GTK_RESPONSE_ACCEPT)
+    {
+        char *filename = gtk_file_chooser_get_filename(chooser);
+
+        // TODO: Implémentez votre logique de sauvegarde ici
+        // Ex: écrire le contenu de votre grille dans filename
+
+        g_free(filename);
+    }
+
+    gtk_widget_destroy(dialog);
+}
 
 void on_solve(GtkButton *btn, gpointer user_data)
 {
@@ -235,6 +278,69 @@ void on_solve(GtkButton *btn, gpointer user_data)
         gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(rotation_check)),
         gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(rotation_spin))
     );
+
+    // printf("%s / %s\n", p->nn_image_path, p->ui_image_path);
+
+    MagickWand *wand = read_image(p->nn_image_path);
+
+    if (!wand)
+    {
+        fprintf(stderr, "Error: unable to read input image.\n");
+        // MagickWandTerminus();
+        return;
+    }
+
+    ExtractedZones ez = detect_zones(wand);
+
+    int grid_count = 0, word_count = 0;
+    CharBBox *grid_chars = detect_characters(
+        wand, ez.grid.x_min, ez.grid.y_min, ez.grid.x_max - ez.grid.x_min,
+        ez.grid.y_max - ez.grid.y_min, &grid_count
+    );
+
+    CharBBox *word_chars = detect_characters(
+        wand, ez.words.x_min, ez.words.y_min, ez.words.x_max - ez.words.x_min,
+        ez.words.y_max - ez.words.y_min, &word_count
+    );
+
+    NeuronalNetwork nn;
+    if (load_nn(nn_path, &nn) != NN_ERR_OK)
+    {
+        fprintf(stderr, "Error loading model\n");
+        free(grid_chars);
+        free(word_chars);
+        DestroyMagickWand(wand);
+        MagickWandTerminus();
+        return;
+    }
+
+    // Classify grid chars
+    // char *grid_preds = malloc(grid_count ? grid_count : 1);
+    for (int i = 0; i < grid_count; i++)
+    {
+        double *input = charbbox_to_cnn_input(wand, grid_chars[i]);
+        double output[26];
+        compute_nn(&nn, input, output);
+
+        // double conf;
+        // grid_preds[i] = get_predicted_letter(output, &conf);
+        free(input);
+    }
+
+    // Classify wordlist chars
+    // char *word_preds = malloc(word_count ? word_count : 1);
+    for (int i = 0; i < word_count; i++)
+    {
+        double *input = charbbox_to_cnn_input(wand, word_chars[i]);
+        double output[26];
+        compute_nn(&nn, input, output);
+
+        // double conf;
+        // word_preds[i] = get_predicted_letter(output, &conf);
+        free(input);
+    }
+
+    free(p);
 }
 
 void on_open_training(GtkButton *btn, gpointer user_data)
@@ -425,4 +531,53 @@ void on_start_training(GtkButton *btn, gpointer user_data)
 {
     (void)btn;
     (void)user_data;
+
+    if (state && state->is_training)
+    {
+        stop_training(state);
+        return;
+    }
+
+    if (!dataset || !nn_folder) return;
+
+    gtk_button_set_label(GTK_BUTTON(start_training_btn), "Stop training");
+
+    TrainingConfig config = {};
+
+    config.model_path = nn_path;
+    config.dataset_folder = dataset;
+    config.save_folder = nn_folder;
+    config.max_epochs = 100;
+    config.save_interval = 20;
+    config.callback = update_metrics;
+
+    int val = start_training(&config, &state);
+
+    if (val) state = NULL;
+}
+
+void update_metrics(EvaluationMetrics *metrics)
+{
+    char acc[10] = {0};
+    char mse_text[100] = {0};
+    char pred[100] = {0};
+
+    sprintf(acc, "%.2f %%", metrics->accuracy * 100.0);
+    sprintf(mse_text, "%.4f", metrics->mse);
+    sprintf(pred, "%d", metrics->correct_predictions);
+
+    gtk_label_set_text(GTK_LABEL(accuracy), acc);
+    gtk_label_set_text(GTK_LABEL(mse), mse_text);
+    gtk_label_set_text(GTK_LABEL(predictions), pred);
+}
+
+void on_stop_training()
+{
+    gtk_label_set_text(GTK_LABEL(accuracy), "0 %");
+    gtk_label_set_text(GTK_LABEL(mse), "0");
+    gtk_label_set_text(GTK_LABEL(predictions), "0");
+
+    gtk_button_set_label(GTK_BUTTON(start_training_btn), "Start training");
+
+    state = NULL;
 }

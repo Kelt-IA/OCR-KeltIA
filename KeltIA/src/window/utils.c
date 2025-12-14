@@ -5,7 +5,7 @@ MagickBooleanType is_supported_by_magickwand(char *path)
     MagickWand *wand;
     MagickBooleanType status;
 
-    MagickWandGenesis();
+    // MagickWandGenesis();
 
     wand = NewMagickWand();
 
@@ -13,7 +13,7 @@ MagickBooleanType is_supported_by_magickwand(char *path)
 
     if (wand) DestroyMagickWand(wand);
 
-    MagickWandTerminus();
+    // MagickWandTerminus();
     return status;
 }
 
