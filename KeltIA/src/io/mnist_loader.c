@@ -202,7 +202,7 @@ void emnist_letters_to_dataset(MNISTData *mnist, Dataset **out_dataset)
 
     dataset->num_samples = mnist->num_images;
     dataset->input_size = 28 * 28;
-    dataset->output_size = 26;  // ← 26 letras
+    dataset->output_size = 26;  // ← 26 letters
 
     dataset->inputs = malloc(dataset->num_samples * sizeof(double *));
     dataset->targets = malloc(dataset->num_samples * sizeof(double *));
@@ -223,7 +223,7 @@ void emnist_letters_to_dataset(MNISTData *mnist, Dataset **out_dataset)
             dataset->inputs[i][j] = mnist->images[i][j] / 255.0;
         }
 
-        // One-hot encode: EMNIST labels son 1-26, convierte a 0-25
+        // One-hot encode: EMNIST labels are 1-26, convert to 0-25
         dataset->targets[i] = calloc(26, sizeof(double));
         uint8_t label = mnist->labels[i];
         if (label > 0 && label <= 26)

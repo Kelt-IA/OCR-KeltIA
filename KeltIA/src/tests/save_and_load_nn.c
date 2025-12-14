@@ -209,22 +209,15 @@ int compare_nn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
 
     if (verbose)
     {
-        printf(
-            COLOR_BLUE
-            "\n========================================\n" COLOR_RESET
-        );
+        printf(COLOR_BLUE
+               "\n========================================\n" COLOR_RESET);
         if (all_match)
         {
             printf(COLOR_GREEN "       ✓ NETWORKS IDENTICAL\n" COLOR_RESET);
         }
-        else
-        {
-            printf(COLOR_RED "       ✗ NETWORKS DIFFERENT\n" COLOR_RESET);
-        }
-        printf(
-            COLOR_BLUE
-            "========================================\n\n" COLOR_RESET
-        );
+        else { printf(COLOR_RED "       ✗ NETWORKS DIFFERENT\n" COLOR_RESET); }
+        printf(COLOR_BLUE
+               "========================================\n\n" COLOR_RESET);
     }
 
     return all_match;
@@ -390,22 +383,15 @@ int compare_cnn(const NeuronalNetwork *a, const NeuronalNetwork *b, int verbose)
 
     if (verbose)
     {
-        printf(
-            COLOR_BLUE
-            "\n========================================\n" COLOR_RESET
-        );
+        printf(COLOR_BLUE
+               "\n========================================\n" COLOR_RESET);
         if (all_match)
         {
             printf(COLOR_GREEN "       ✓ CNNs IDENTICAL\n" COLOR_RESET);
         }
-        else
-        {
-            printf(COLOR_RED "       ✗ CNNs DIFFERENT\n" COLOR_RESET);
-        }
-        printf(
-            COLOR_BLUE
-            "========================================\n\n" COLOR_RESET
-        );
+        else { printf(COLOR_RED "       ✗ CNNs DIFFERENT\n" COLOR_RESET); }
+        printf(COLOR_BLUE
+               "========================================\n\n" COLOR_RESET);
     }
 
     return all_match;
@@ -432,7 +418,7 @@ int test_cnn_save_load(int verbose)
 
     NeuronalNetwork cnn;
 
-    size_t dense_neurons[] = {128, 10};  // Asegúrate de que esté definido
+    size_t dense_neurons[] = {128, 10};  // Make sure it is defined
     ActivationType activations[] = {ACTIVATION_LEAKY_RELU, ACTIVATION_SIGMOID};
 
     create_cnn(
@@ -537,8 +523,7 @@ int test_write_and_load(int verbose)
 int test_cnn_save_load_stride_padding(int verbose)
 {
     if (verbose)
-        printf(
-            "\n=== Testing CNN save/load with different stride/padding ===\n"
+        printf("\n=== Testing CNN save/load with different stride/padding ===\n"
         );
 
     srand(42);
