@@ -33,9 +33,18 @@ void draw_word_box(CharBBox **grid, WordPos *pos, MagickWand *wand)
     CharBBox *start = grid[pos->y1] + pos->x1;
     CharBBox *end = grid[pos->y2] + pos->x2;
     free(pos);
+    /* Calculate center coordinates of start and end characters */
+    double start_center_x = start->x + start->w / 2.0;
+    double start_center_y = start->y + start->h / 2.0;
+    double end_center_x = end->x + end->w / 2.0;
+    double end_center_y = end->y + end->h / 2.0;
+
+    /* Use average height as rectangle thickness */
+    double avg_height = (start->h + end->h) / 2.0;
+
     draw_rotated_rectangle_diagonal(
-        wand, start->x + (double)start->w / 2, start->y + (double)start->h / 2,
-        end->x + (double)end->w / 2, end->y + (double)end->h / 2, 10
+        wand, start_center_x, start_center_y, end_center_x, end_center_y,
+        avg_height /* Thickness based on character height */
     );
 }
 
