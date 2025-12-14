@@ -23,7 +23,7 @@ char **parse_line(const char *line, size_t *num_fields, const char *sep)
         token = strtok(NULL, sep);
     }
     free(line_copy);
-    return fields;  // Devuelves el array, pero esto NO se libera en read_csv
+    return fields;  // Returns the array, but this is NOT freed in read_csv
 }
 
 CSV *read_csv(const char *filename, const char *sep)
@@ -59,9 +59,8 @@ CSV *read_csv(const char *filename, const char *sep)
         {
             data->rows[i][data->entries] = fields[i];
         }
-        free(
-            fields
-        );  // LIBERA EL ARRAY, pero NO los strings (que ya están en data->rows)
+        free(fields);  // FREES THE ARRAY, but NOT the strings (which are
+                       // already in data->rows)
         data->entries++;
     }
 
@@ -76,7 +75,7 @@ void free_csv(CSV *data)
         free(data->labels[i]);
         for (size_t j = 0; j < data->entries; j++)
         {
-            free(data->rows[i][j]);  // Esto está bien
+            free(data->rows[i][j]);  // This is correct
         }
         free(data->rows[i]);
     }
