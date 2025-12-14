@@ -1,12 +1,18 @@
 #include "../../include/window/callback.h"
 #include "../../include/window/utils.h"
-#include "gtk/gtk.h"
 
 GtkBuilder *builder = NULL;
 GtkWidget *window = NULL;
 
+GtkWidget *color = NULL;
+GtkWidget *grayscale = NULL;
+GtkWidget *bw = NULL;
+
+GtkWidget *noise = NULL;
+
 GtkWidget *rotation_check = NULL;
 GtkWidget *rotation_box = NULL;
+GtkWidget *rotation_spin = NULL;
 
 GtkWidget *viewport = NULL;
 GtkWidget *load_img_btn = NULL;
@@ -17,9 +23,24 @@ char *nn = NULL;
 
 GtkWidget *solve_btn = NULL;
 
+GtkBuilder *training_builder = NULL;
 GtkWidget *training_btn = NULL;
 GtkWidget *training_win = NULL;
 int train_running = 0;
+
+GtkWidget *open_dataset = NULL;
+GtkWidget *select_nn_folder = NULL;
+GtkWidget *start_training_btn = NULL;
+
+char *dataset = NULL;
+char *nn_folder = NULL;
+
+GtkWidget *dataset_label = NULL;
+GtkWidget *nn_label = NULL;
+
+GtkWidget *accuracy = NULL;
+GtkWidget *mse = NULL;
+GtkWidget *predictions = NULL;
 
 void callback_init(GtkBuilder *b, GtkWidget *w)
 {
@@ -32,6 +53,10 @@ void callback_init(GtkBuilder *b, GtkWidget *w)
     if (!(rotation_box =
               GTK_WIDGET(gtk_builder_get_object(builder, "rotation_gbox"))))
         errx(EXIT_FAILURE, "Could not find rotation box");
+
+    if (!(rotation_spin =
+              GTK_WIDGET(gtk_builder_get_object(builder, "rotation_btn"))))
+        errx(EXIT_FAILURE, "Could not find rotation spin");
 
     if (!(rotation_check =
               GTK_WIDGET(gtk_builder_get_object(builder, "auto_rotation_btn"))))
@@ -69,6 +94,23 @@ void callback_init(GtkBuilder *b, GtkWidget *w)
     g_signal_connect(
         training_btn, "clicked", G_CALLBACK(on_open_training), NULL
     );
+
+    if (!(color =
+              GTK_WIDGET(gtk_builder_get_object(builder, "render_color_btn"))))
+        errx(EXIT_FAILURE, "Could not find render color btn");
+
+    if (!(grayscale = GTK_WIDGET(
+              gtk_builder_get_object(builder, "render_grayscale_btn")
+          )))
+        errx(EXIT_FAILURE, "Could not find grayscale btn");
+
+    if (!(bw = GTK_WIDGET(gtk_builder_get_object(builder, "render_bw_btn"))))
+        errx(EXIT_FAILURE, "Could not find bw btn");
+
+    if (!(noise = GTK_WIDGET(
+              gtk_builder_get_object(builder, "image_correction_btn")
+          )))
+        errx(EXIT_FAILURE, "Could not find noise btn");
 }
 
 void on_autorotate_check(GtkToggleButton *toggle_button, gpointer user_data)
@@ -130,7 +172,7 @@ void on_open_image(GtkButton *btn, gpointer user_data)
             free(img);
         }
 
-        img = copy_to_temp_file_path((const char *)img);
+        img = copy_to_temp_file_path((const char *)filename);
 
         g_free(filename);
     }
@@ -183,6 +225,16 @@ void on_solve(GtkButton *btn, gpointer user_data)
 {
     (void)btn;
     (void)user_data;
+
+    if (!img) return;
+
+    ProcessedImages *p = process_image(
+        img, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(grayscale)),
+        gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(bw)),
+        gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(noise)),
+        gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(rotation_check)),
+        gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(rotation_spin))
+    );
 }
 
 void on_open_training(GtkButton *btn, gpointer user_data)
@@ -197,8 +249,25 @@ void on_open_training(GtkButton *btn, gpointer user_data)
         return;
     }
 
+    GError *error = NULL;
+
+    training_builder = gtk_builder_new();
+
+    if (!gtk_builder_add_from_resource(
+            training_builder, "/org/keltia/ressources/training_window.glade",
+            &error
+        ))
+    {
+        g_printerr(
+            "Error loading file: %s\n", error ? error->message : "unknown"
+        );
+        if (error) g_error_free(error);
+        if (training_builder) g_object_unref(training_builder);
+        return;
+    }
+
     training_win =
-        GTK_WIDGET(gtk_builder_get_object(builder, "training_window"));
+        GTK_WIDGET(gtk_builder_get_object(training_builder, "training_window"));
 
     gtk_window_set_title(GTK_WINDOW(training_win), "KeltIA - NN Training Mode");
 
@@ -206,6 +275,59 @@ void on_open_training(GtkButton *btn, gpointer user_data)
         training_win, "delete-event",
         G_CALLBACK(on_training_window_delete_event), NULL
     );
+
+    if (!(open_dataset = GTK_WIDGET(
+              gtk_builder_get_object(training_builder, "dataset_btn")
+          )))
+        errx(EXIT_FAILURE, "Could not find dataset btn");
+
+    if (!(dataset_label = GTK_WIDGET(
+              gtk_builder_get_object(training_builder, "dataset_folder_label")
+          )))
+        errx(EXIT_FAILURE, "Could not find dataset label");
+
+    g_signal_connect(
+        open_dataset, "clicked", G_CALLBACK(on_open_dataset), NULL
+    );
+
+    if (!(select_nn_folder = GTK_WIDGET(
+              gtk_builder_get_object(training_builder, "nn_folder_btn")
+          )))
+        errx(EXIT_FAILURE, "Could not find nn folder btn");
+
+    if (!(nn_label = GTK_WIDGET(
+              gtk_builder_get_object(training_builder, "output_folder")
+          )))
+        errx(EXIT_FAILURE, "Could not find nn folder label");
+
+    g_signal_connect(
+        select_nn_folder, "clicked", G_CALLBACK(on_select_nn_folder), NULL
+    );
+
+    if (!(start_training_btn = GTK_WIDGET(
+              gtk_builder_get_object(training_builder, "training_btn")
+          )))
+        errx(EXIT_FAILURE, "Could not find start training btn");
+
+    g_signal_connect(
+        start_training_btn, "clicked", G_CALLBACK(on_start_training), NULL
+    );
+
+    if (!(accuracy = GTK_WIDGET(
+              gtk_builder_get_object(training_builder, "accuracy_label")
+          )))
+        errx(EXIT_FAILURE, "Could not find accuracy");
+
+    if (!(mse = GTK_WIDGET(
+              gtk_builder_get_object(training_builder, "mse_label")
+          )))
+        errx(EXIT_FAILURE, "Could not find mse");
+
+    if (!(predictions = GTK_WIDGET(
+              gtk_builder_get_object(training_builder, "prediction_label")
+          )))
+        errx(EXIT_FAILURE, "Could not find predictions");
+
     gtk_widget_show_all(training_win);
 }
 
@@ -223,4 +345,84 @@ gboolean on_training_window_delete_event(
 
     train_running = 0;
     return TRUE;
+}
+
+void on_open_dataset(GtkButton *btn, gpointer user_data)
+{
+    (void)btn;
+    (void)user_data;
+
+    GtkWidget *parent = window;
+    GtkWidget *dialog;
+    gint res;
+
+    dialog = gtk_file_chooser_dialog_new(
+        "Open dataset folder", GTK_WINDOW(parent),
+        GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "_Cancel", GTK_RESPONSE_CANCEL,
+        "_Open", GTK_RESPONSE_ACCEPT, NULL
+    );
+
+    res = gtk_dialog_run(GTK_DIALOG(dialog));
+
+    if (res == GTK_RESPONSE_ACCEPT)
+    {
+        char *folder;
+        GtkFileChooser *chooser = GTK_FILE_CHOOSER(dialog);
+
+        folder = gtk_file_chooser_get_filename(chooser);
+
+        if (dataset) { g_free(dataset); }
+
+        dataset = folder;
+
+        gtk_label_set_text(GTK_LABEL(dataset_label), dataset);
+
+        gtk_window_present(GTK_WINDOW(training_win));
+    }
+
+    gtk_widget_destroy(dialog);
+}
+
+void on_select_nn_folder(GtkButton *btn, gpointer user_data)
+{
+    (void)btn;
+    (void)user_data;
+
+    GtkWidget *parent = window;
+    GtkWidget *dialog;
+    gint res;
+
+    dialog = gtk_file_chooser_dialog_new(
+        "Select nn folder", GTK_WINDOW(parent),
+        GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "_Cancel", GTK_RESPONSE_CANCEL,
+        "_Open", GTK_RESPONSE_ACCEPT, NULL
+    );
+
+    gtk_file_chooser_set_create_folders(GTK_FILE_CHOOSER(dialog), TRUE);
+
+    res = gtk_dialog_run(GTK_DIALOG(dialog));
+
+    if (res == GTK_RESPONSE_ACCEPT)
+    {
+        char *folder;
+        GtkFileChooser *chooser = GTK_FILE_CHOOSER(dialog);
+
+        folder = gtk_file_chooser_get_filename(chooser);
+
+        if (nn_folder) { g_free(nn_folder); }
+
+        nn_folder = folder;
+
+        gtk_label_set_text(GTK_LABEL(nn_label), nn_folder);
+
+        gtk_window_present(GTK_WINDOW(training_win));
+    }
+
+    gtk_widget_destroy(dialog);
+}
+
+void on_start_training(GtkButton *btn, gpointer user_data)
+{
+    (void)btn;
+    (void)user_data;
 }

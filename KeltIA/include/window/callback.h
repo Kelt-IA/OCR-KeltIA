@@ -3,6 +3,8 @@
 #include <gtk/gtk.h>
 #include <stdlib.h>
 
+#include "../../include/image/treatment.h"
+
 void callback_init(GtkBuilder *b, GtkWidget *w);
 void on_autorotate_check(GtkToggleButton *toggle_button, gpointer user_data);
 void on_open_image(GtkButton *btn, gpointer user_data);
@@ -15,3 +17,6 @@ gboolean on_training_window_delete_event(
     GdkEvent *event,
     gpointer user_data
 );
+void on_open_dataset(GtkButton *btn, gpointer user_data);
+void on_select_nn_folder(GtkButton *btn, gpointer user_data);
+void on_start_training(GtkButton *btn, gpointer user_data);
