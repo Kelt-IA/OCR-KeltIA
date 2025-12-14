@@ -6,3 +6,4 @@
 
 MagickBooleanType is_supported_by_magickwand(char *path);
 char *copy_to_temp_file_path(const char *source_path);
+int copy_file(const char *source, const char *dest);

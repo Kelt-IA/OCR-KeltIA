@@ -82,3 +82,28 @@ char *copy_to_temp_file_path(const char *source_path)
     // printf("File copied to temp: %s\n", result_path);
     return result_path;
 }
+
+int copy_file(const char *source, const char *dest)
+{
+    FILE *src = fopen(source, "rb");
+    FILE *dst = fopen(dest, "wb");
+
+    if (!src || !dst)
+    {
+        if (src) fclose(src);
+        if (dst) fclose(dst);
+        return -1;
+    }
+
+    unsigned char buffer[4096];
+    size_t bytes;
+
+    while ((bytes = fread(buffer, 1, sizeof(buffer), src)) > 0)
+    {
+        fwrite(buffer, 1, bytes, dst);
+    }
+
+    fclose(src);
+    fclose(dst);
+    return 0;
+}
