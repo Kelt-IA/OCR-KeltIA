@@ -1,4 +1,4 @@
-#include "../../include/solver/include_solver.h"
+#include "../../include/solver/solver.h"
 #include <err.h>
 #include <stdio.h>
 
@@ -13,7 +13,8 @@ Algorithm :
     return None
 */
 
-void solver(char *grid, int height, int width, const char *word, int word_len)
+WordPos *
+solver(char *grid, int height, int width, const char *word, int word_len)
 {
     int directions[8][2] = {
         {0, 1},    // → E  (East)
@@ -55,16 +56,26 @@ void solver(char *grid, int height, int width, const char *word, int word_len)
                         int i2 = x - row_delta;
                         int j2 = y - col_delta;
 
+                        WordPos *pos = malloc(sizeof(WordPos));
+
+                        if (pos)
+                        {
+                            pos->x1 = j;
+                            pos->y1 = x;
+                            pos->x2 = j2;
+                            pos->y2 = i2;
+                        }
+
                         printf(
                             "(%i,%i)(%i,%i)\n", j, i, j2, i2
                         );  // Python and C's indexes (i,j) are (j,i) humans
                             // coordinates.
-                        return;
+                        return pos;
                     }
                 }
             }
         }
     }
     printf("Not Found\n");
-    return;
+    return NULL;
 }
