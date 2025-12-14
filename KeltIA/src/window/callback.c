@@ -542,6 +542,7 @@ void on_start_training(GtkButton *btn, gpointer user_data)
     config.max_epochs = 100;
     config.save_interval = 20;
     config.callback = update_metrics;
+    config.stop_cb = on_stop_training;
 
     int val = start_training(&config, &state);
 
