@@ -1,5 +1,6 @@
 // demos/construct_grid_and_word_list.c - extract chars, classify with CNN,
 // and build textual grid and word list
+
 #include "../include/detect_zones/detect_char.h"
 #include "../include/detect_zones/detect_zones.h"
 #include "../include/image/grayscale.h"
@@ -9,12 +10,9 @@
 #include "../include/nn/network_io.h"
 #include <MagickWand/MagickWand.h>
 #include <err.h>
-#include <limits.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 typedef struct
 {
@@ -28,6 +26,15 @@ typedef struct
     int rows;
     int cols;
 } Grid;
+
+// Helper struct for sorting characters
+typedef struct
+{
+    int index;  // Original index in chars array
+    int line;   // Assigned line number
+    int x;      // X position
+    int y;      // Y position
+} CharIndex;
 
 // Get predicted letter from CNN output (argmax)
 static char get_predicted_letter(double *output, double *confidence)
@@ -93,7 +100,20 @@ static int group_lines(CharBBox *chars, int num, int **assignments)
     return line + 1;
 }
 
-// Build grid from chars and predictions
+// Comparison function for sorting characters by position
+static int compare_char_position(const void *a, const void *b)
+{
+    const CharIndex *ca = (const CharIndex *)a;
+    const CharIndex *cb = (const CharIndex *)b;
+
+    // First sort by Y position (top to bottom) - using average line Y
+    if (ca->line != cb->line) { return ca->line - cb->line; }
+
+    // Then sort by X position (left to right)
+    return ca->x - cb->x;
+}
+
+// Build grid from chars and predictions - FIXED VERSION
 static Grid build_grid(CharBBox *chars, int num, char *predictions)
 {
     Grid grid = {NULL, 0, 0};
@@ -101,6 +121,20 @@ static Grid build_grid(CharBBox *chars, int num, char *predictions)
 
     int *lines;
     int num_lines = group_lines(chars, num, &lines);
+
+    // ===== FIX: Create sorted index array =====
+    CharIndex *char_indices = malloc(num * sizeof(CharIndex));
+    for (int i = 0; i < num; i++)
+    {
+        char_indices[i].index = i;
+        char_indices[i].line = lines[i];
+        char_indices[i].x = chars[i].x;
+        char_indices[i].y = chars[i].y;
+    }
+
+    // Sort by line first, then by X position
+    qsort(char_indices, num, sizeof(CharIndex), compare_char_position);
+    // ===== END FIX =====
 
     int *chars_per_line = calloc(num_lines, sizeof(int));
     for (int i = 0; i < num; i++) { chars_per_line[lines[i]]++; }
@@ -123,13 +157,22 @@ static Grid build_grid(CharBBox *chars, int num, char *predictions)
     }
 
     int *col_count = calloc(num_lines, sizeof(int));
+
+    // ===== FIX: Process in sorted order =====
     for (int i = 0; i < num; i++)
     {
-        int line = lines[i];
+        int original_idx = char_indices[i].index;
+        int line = char_indices[i].line;
         int col = col_count[line]++;
-        if (col < max_cols) { grid.grid[line][col] = predictions[i]; }
-    }
 
+        if (col < max_cols)
+        {
+            grid.grid[line][col] = predictions[original_idx];
+        }
+    }
+    // ===== END FIX =====
+
+    free(char_indices);
     free(lines);
     free(chars_per_line);
     free(col_count);
@@ -137,7 +180,7 @@ static Grid build_grid(CharBBox *chars, int num, char *predictions)
     return grid;
 }
 
-// Build wordlist: group by lines and concatenate
+// Build wordlist: group by lines and concatenate - FIXED VERSION
 static Word *
 build_wordlist(CharBBox *chars, int num, char *predictions, int *num_words)
 {
@@ -147,34 +190,55 @@ build_wordlist(CharBBox *chars, int num, char *predictions, int *num_words)
     int *lines;
     int num_lines = group_lines(chars, num, &lines);
 
+    // ===== FIX: Sort characters by position =====
+    CharIndex *char_indices = malloc(num * sizeof(CharIndex));
+    for (int i = 0; i < num; i++)
+    {
+        char_indices[i].index = i;
+        char_indices[i].line = lines[i];
+        char_indices[i].x = chars[i].x;
+        char_indices[i].y = chars[i].y;
+    }
+
+    qsort(char_indices, num, sizeof(CharIndex), compare_char_position);
+    // ===== END FIX =====
+
     Word *words = malloc(num_lines * sizeof(Word));
 
     for (int line = 0; line < num_lines; line++)
     {
         int count = 0;
+
+        // Count chars in this line
         for (int i = 0; i < num; i++)
         {
-            if (lines[i] == line) count++;
+            if (char_indices[i].line == line) count++;
         }
 
         if (count == 0) continue;
 
         words[*num_words].text = malloc(count + 1);
         words[*num_words].length = count;
-
         int idx = 0;
+
+        // ===== FIX: Add chars in sorted order =====
         for (int i = 0; i < num; i++)
         {
-            if (lines[i] == line)
+            if (char_indices[i].line == line)
             {
-                words[*num_words].text[idx++] = predictions[i];
+                int original_idx = char_indices[i].index;
+                words[*num_words].text[idx++] = predictions[original_idx];
             }
         }
+        // ===== END FIX =====
+
         words[*num_words].text[idx] = '\0';
         (*num_words)++;
     }
 
+    free(char_indices);
     free(lines);
+
     return words;
 }
 
@@ -182,7 +246,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 3)
     {
-        fprintf(stderr, "Usage: %s <input_image> <cnn_model>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <image> <model>\n", argv[0]);
         fprintf(
             stderr, "Example: %s crossword.png models/custom-cnn-final.nn\n",
             argv[0]
@@ -194,7 +258,7 @@ int main(int argc, char *argv[])
     const char *model_path = argv[2];
 
     printf("╔════════════════════════════════════════╗\n");
-    printf("║     Construct Grid and Word List       ║\n");
+    printf("║  Construct Grid and Word List         ║\n");
     printf("╚════════════════════════════════════════╝\n\n");
 
     MagickWandGenesis();
@@ -202,12 +266,14 @@ int main(int argc, char *argv[])
     // Step 1: Load image (assumed already preprocessed: grayscale + denoised)
     printf("[1/4] Loading image (assumed preprocessed)...\n");
     MagickWand *wand = NewMagickWand();
+
     if (!MagickReadImage(wand, input_path))
     {
         DestroyMagickWand(wand);
         MagickWandTerminus();
         errx(EXIT_FAILURE, "Error: Could not read %s\n", input_path);
     }
+
     printf("✓ Done\n\n");
 
     // Step 2: Detect zones and characters
@@ -231,6 +297,7 @@ int main(int argc, char *argv[])
     // Step 3: Load CNN and classify
     printf("[3/4] Loading CNN and classifying...\n");
     NeuronalNetwork nn;
+
     if (load_nn(model_path, &nn) != NN_ERR_OK)
     {
         fprintf(stderr, "Error loading model\n");
@@ -248,7 +315,6 @@ int main(int argc, char *argv[])
         double *input = charbbox_to_cnn_input(wand, grid_chars[i]);
         double output[26];
         compute_nn(&nn, input, output);
-
         double conf;
         grid_preds[i] = get_predicted_letter(output, &conf);
         free(input);
@@ -261,7 +327,6 @@ int main(int argc, char *argv[])
         double *input = charbbox_to_cnn_input(wand, word_chars[i]);
         double output[26];
         compute_nn(&nn, input, output);
-
         double conf;
         word_preds[i] = get_predicted_letter(output, &conf);
         free(input);
@@ -271,13 +336,14 @@ int main(int argc, char *argv[])
 
     // Step 4: Build and print textual grid and wordlist
     printf("[4/4] Building grid and wordlist...\n\n");
-
     Grid grid = build_grid(grid_chars, grid_count, grid_preds);
 
     printf("╔════════════════════════════════════════╗\n");
     printf("║              GRID                     ║\n");
     printf("╚════════════════════════════════════════╝\n\n");
+
     for (int i = 0; i < grid.rows; i++) { printf("  %s\n", grid.grid[i]); }
+
     printf("\n");
 
     int num_words;
@@ -287,22 +353,27 @@ int main(int argc, char *argv[])
     printf("╔════════════════════════════════════════╗\n");
     printf("║            WORD LIST                  ║\n");
     printf("╚════════════════════════════════════════╝\n\n");
+
     for (int i = 0; i < num_words; i++)
     {
         printf("  %2d. %s\n", i + 1, wordlist[i].text);
     }
+
     printf("\n");
 
     // Cleanup
     for (int i = 0; i < grid.rows; i++) free(grid.grid[i]);
     free(grid.grid);
+
     for (int i = 0; i < num_words; i++) free(wordlist[i].text);
     free(wordlist);
+
     free(grid_preds);
     free(word_preds);
     free(grid_chars);
     free(word_chars);
     free_nn(&nn);
+
     DestroyMagickWand(wand);
     MagickWandTerminus();
 
