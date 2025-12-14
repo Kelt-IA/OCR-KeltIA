@@ -45,6 +45,8 @@ GtkWidget *predictions = NULL;
 
 TrainingState *state = NULL;
 
+int solved = 0;
+
 void callback_init(GtkBuilder *b, GtkWidget *w)
 {
     builder = b;
@@ -186,6 +188,8 @@ void on_open_image(GtkButton *btn, gpointer user_data)
 
         img = copy_to_temp_file_path((const char *)filename);
 
+        gtk_image_set_from_file(GTK_IMAGE(viewport), filename);
+
         g_free(filename);
     }
 
@@ -251,7 +255,7 @@ void on_save(GtkButton *btn, gpointer user_data)
     GtkFileChooser *chooser = GTK_FILE_CHOOSER(dialog);
     gtk_file_chooser_set_do_overwrite_confirmation(chooser, TRUE);
 
-    gtk_file_chooser_set_current_name(chooser, "solved_grid.pnd");
+    gtk_file_chooser_set_current_name(chooser, "solved_grid.png");
 
     res = gtk_dialog_run(GTK_DIALOG(dialog));
 
@@ -259,8 +263,7 @@ void on_save(GtkButton *btn, gpointer user_data)
     {
         char *filename = gtk_file_chooser_get_filename(chooser);
 
-        // TODO: Implémentez votre logique de sauvegarde ici
-        // Ex: écrire le contenu de votre grille dans filename
+        if (solved) copy_file("/tmp/output.png", filename);
 
         g_free(filename);
     }
@@ -326,6 +329,8 @@ void on_solve(GtkButton *btn, gpointer user_data)
     }
 
     gtk_image_set_from_file(GTK_IMAGE(viewport), "/tmp/output.png");
+
+    solved = 1;
 
     free(p);
 }
