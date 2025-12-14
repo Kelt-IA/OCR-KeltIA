@@ -9,31 +9,33 @@ void show_result(
     MagickWand *wand
 )
 {
-    char **w = words;
+    // Check if words array exists
+    if (!words) return;
 
-    while (w)
+    // Iterate through null-terminated array
+    for (int i = 0; words[i] != NULL; i++)  // ← FIX: Check if words[i] is NULL
     {
-        WordPos *pos =
-            solver(char_grid, height, width, (const char *)*w, strlen(*w));
+        WordPos *pos = solver(
+            char_grid, height, width,
+            (const char *)words[i],  // ← Use words[i] directly
+            strlen(words[i])
+        );
 
-        if (pos) draw_word_box(grid, pos, wand);
-
-        free(*w);
-        w++;
+        if (pos) { draw_word_box(grid, pos, wand); }
     }
 
-    free(words);
+    // Don't free words here! The caller should do it
+    // Because you're not freeing the individual words anymore
 }
 
 void draw_word_box(CharBBox **grid, WordPos *pos, MagickWand *wand)
 {
     CharBBox *start = grid[pos->y1] + pos->x1;
     CharBBox *end = grid[pos->y2] + pos->x2;
-
     free(pos);
-
     draw_rotated_rectangle_diagonal(
-        wand, start->x, start->y, end->x + end->w, end->y + end->h, 10
+        wand, start->x + (double)start->w / 2, start->y + (double)start->h / 2,
+        end->x + (double)end->w / 2, end->y + (double)end->h / 2, 10
     );
 }
 
@@ -59,7 +61,6 @@ void draw_rotated_rectangle_diagonal(
     /* Example colors: red outline, transparent fill */
     PixelSetColor(stroke, "red");
     PixelSetColor(fill, "none");
-
     DrawSetStrokeColor(draw_wand, stroke);
     DrawSetStrokeWidth(draw_wand, 1.0); /* outline width */
     DrawSetFillColor(draw_wand, fill);
@@ -67,6 +68,7 @@ void draw_rotated_rectangle_diagonal(
     dx = x2 - x1;
     dy = y2 - y1;
     length = sqrt(dx * dx + dy * dy);
+
     if (length == 0.0)
     {
         /* Avoid division by zero */
