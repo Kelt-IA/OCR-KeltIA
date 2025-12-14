@@ -1,3 +1,4 @@
+#pragma once
 #include "../../include/detect_zones/detect_zones.h"
 
 #include <MagickWand/MagickWand.h>
