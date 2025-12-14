@@ -1,5 +1,4 @@
 // demos/custom_letters_training.c - Entrenamiento CNN para dataset custom
-// (OVERFITTING)
 #include "../include/io/bitmap_loader.h"
 #include "../include/nn/accuracy_metrics.h"
 #include "../include/nn/network.h"
@@ -19,7 +18,8 @@ int main(int argc, char *argv[])
     {
         fprintf(
             stderr,
-            "Usage: %s <dataset_path> <save_path> [--model <model_path>]\n",
+            "Usage: %s <dataset_path> <save_path> [--model <model_path>] "
+            "[--test]\n",
             argv[0]
         );
         fprintf(stderr, "Example: %s dataset/letters models/custom\n", argv[0]);
@@ -27,6 +27,12 @@ int main(int argc, char *argv[])
             stderr,
             "         %s dataset/letters models/custom --model "
             "models/custom/cnn-epoch-20.nn\n",
+            argv[0]
+        );
+        fprintf(
+            stderr,
+            "         %s dataset/letters models/custom --test  # Enable "
+            "train/test split\n",
             argv[0]
         );
         return 1;
@@ -37,6 +43,7 @@ int main(int argc, char *argv[])
     char *dataset_path = argv[1];
     char *save_path = argv[2];
     char *model_path = NULL;
+    int use_test_split = 0;
 
     // Parse arguments
     for (int i = 3; i < argc; i++)
@@ -46,11 +53,19 @@ int main(int argc, char *argv[])
             model_path = argv[i + 1];
             i++;
         }
+        else if (strcmp(argv[i], "--test") == 0) { use_test_split = 1; }
     }
 
     printf("\n╔════════════════════════════════════════╗\n");
     printf("║  Custom Letter Dataset CNN Training    ║\n");
-    printf("║         (OVERFITTING MODE)             ║\n");
+    if (use_test_split)
+    {
+        printf("║       (TRAIN/TEST SPLIT MODE)          ║\n");
+    }
+    else
+    {
+        printf("║         (OVERFITTING MODE)             ║\n");
+    }
     printf("╚════════════════════════════════════════╝\n\n");
 
     // Load custom dataset from folders
@@ -66,15 +81,62 @@ int main(int argc, char *argv[])
 
     printf("  Loaded %zu images (28x28)\n", image_data->num_images);
 
-    // Convert to dataset format
-    Dataset *dataset = NULL;
-    images_to_dataset(image_data, &dataset, 26);  // 26 letters A-Z
+    // Split dataset if --test flag is set
+    Dataset *train_dataset = NULL;
+    Dataset *test_dataset = NULL;
+    ImageData *test_image_data = NULL;
 
-    if (!dataset)
+    if (use_test_split)
     {
-        fprintf(stderr, "Failed to convert to dataset format\n");
-        free_image_data(image_data);
-        return EXIT_FAILURE;
+        // Use 10% for testing
+        size_t test_size = image_data->num_images / 10;
+        size_t train_size = image_data->num_images - test_size;
+
+        printf("\nSplitting dataset:\n");
+        printf("  Training: %zu images\n", train_size);
+        printf("  Testing: %zu images\n", test_size);
+
+        // Create test ImageData structure (shares pointers with image_data)
+        test_image_data = malloc(sizeof(ImageData));
+        if (!test_image_data)
+        {
+            fprintf(stderr, "Error allocating test data\n");
+            free_image_data(image_data);
+            return EXIT_FAILURE;
+        }
+
+        test_image_data->num_images = test_size;
+        test_image_data->width = 28;
+        test_image_data->height = 28;
+        test_image_data->images = &image_data->images[train_size];
+        test_image_data->labels = &image_data->labels[train_size];
+
+        // Adjust train size
+        image_data->num_images = train_size;
+
+        // Convert both to datasets
+        images_to_dataset(image_data, &train_dataset, 26);
+        images_to_dataset(test_image_data, &test_dataset, 26);
+
+        if (!train_dataset || !test_dataset)
+        {
+            fprintf(stderr, "Failed to convert to dataset format\n");
+            free(test_image_data);
+            free_image_data(image_data);
+            return EXIT_FAILURE;
+        }
+    }
+    else
+    {
+        // Use all data for training (overfitting mode)
+        images_to_dataset(image_data, &train_dataset, 26);
+
+        if (!train_dataset)
+        {
+            fprintf(stderr, "Failed to convert to dataset format\n");
+            free_image_data(image_data);
+            return EXIT_FAILURE;
+        }
     }
 
     int const OUTPUTS = 26;  // A-Z letters
@@ -92,7 +154,9 @@ int main(int argc, char *argv[])
         if (err1 != 0)
         {
             fprintf(stderr, "Error creating conv layer 1\n");
-            free_dataset(dataset);
+            free_dataset(train_dataset);
+            if (test_dataset) free_dataset(test_dataset);
+            if (test_image_data) free(test_image_data);
             free_image_data(image_data);
             return EXIT_FAILURE;
         }
@@ -104,7 +168,9 @@ int main(int argc, char *argv[])
         {
             fprintf(stderr, "Error creating conv layer 2\n");
             free_conv_layer(&conv_configs[0]);
-            free_dataset(dataset);
+            free_dataset(train_dataset);
+            if (test_dataset) free_dataset(test_dataset);
+            if (test_image_data) free(test_image_data);
             free_image_data(image_data);
             return EXIT_FAILURE;
         }
@@ -123,10 +189,26 @@ int main(int argc, char *argv[])
             );
             free_conv_layer(&conv_configs[0]);
             free_conv_layer(&conv_configs[1]);
-            free_dataset(dataset);
+            free_dataset(train_dataset);
+            if (test_dataset) free_dataset(test_dataset);
+            if (test_image_data) free(test_image_data);
             free_image_data(image_data);
             return EXIT_FAILURE;
         }
+
+        printf("\nCNN Architecture:\n");
+        printf("  Input: 1x28x28\n");
+        printf(
+            "  Conv1: 1x28x28 -> 8 filters 5x5 -> 8x24x24 -> MaxPool -> "
+            "8x12x12\n"
+        );
+        printf(
+            "  Conv2: 8x12x12 -> 16 filters 3x3 -> 16x10x10 -> MaxPool -> "
+            "16x5x5\n"
+        );
+        printf("  Flatten: %zu (16*5*5 = 400)\n", nn.flattened_size);
+        printf("  Dense1: %zu -> 128 (Leaky ReLU)\n", nn.flattened_size);
+        printf("  Dense2: 128 -> %d (Leaky ReLU)\n", OUTPUTS);
     }
     else
     {
@@ -137,7 +219,9 @@ int main(int argc, char *argv[])
             fprintf(
                 stderr, "Error loading model: %s\n", nn_error_to_string(err)
             );
-            free_dataset(dataset);
+            free_dataset(train_dataset);
+            if (test_dataset) free_dataset(test_dataset);
+            if (test_image_data) free(test_image_data);
             free_image_data(image_data);
             return EXIT_FAILURE;
         }
@@ -156,8 +240,16 @@ int main(int argc, char *argv[])
     printf("  Learning rate: %.4f\n", nn.learning_rate);
     printf("  Optimizer: SGD (batch_size=1)\n");
     printf("  Max epochs: %d\n", MAX_EPOCHS);
-    printf("  Total samples: %d\n", dataset->num_samples);
-    printf("  Mode: OVERFITTING (train = test)\n\n");
+    printf("  Training samples: %d\n", train_dataset->num_samples);
+    if (use_test_split)
+    {
+        printf("  Test samples: %d\n", test_dataset->num_samples);
+    }
+    else
+    {
+        printf("  Mode: OVERFITTING (no test set)\n");
+    }
+    printf("\n");
 
     printf("Starting training...\n");
     printf("Press Ctrl+C to stop\n\n");
@@ -166,33 +258,37 @@ int main(int argc, char *argv[])
 
     while (!stop_requested && total_epochs < MAX_EPOCHS)
     {
-        // time_t epoch_start = time(NULL);
-
-        train_nn(&nn, dataset, epochs_per_save, batch_size);
+        train_nn(&nn, train_dataset, epochs_per_save, batch_size);
         total_epochs += epochs_per_save;
 
-        // time_t epoch_end = time(NULL);
-        // double epoch_time = difftime(epoch_end, epoch_start);
-
-        // Evaluate on same dataset (overfitting check)
-        // EvaluationMetrics metrics = evaluate_network(&nn, dataset);
-        // printf(
-        //     "    Accuracy: %.2f%% (%d/%d)\n",
-        //     metrics.accuracy * 100.0, metrics.correct_predictions,
-        //     dataset->num_samples
-        // );
-
-        // Save every 15 epochs
+        // Evaluate and save every 15 epochs
         if (total_epochs % 15 == 0 && total_epochs > 0)
         {
-            printf("=== Epoch %zu/%d ===\n", total_epochs + 1, MAX_EPOCHS);
-            // Evaluate on same dataset(overfitting check)
-            EvaluationMetrics metrics = evaluate_network(&nn, dataset);
+            printf("=== Epoch %zu/%d ===\n", total_epochs, MAX_EPOCHS);
+
+            // Evaluate on training set
+            EvaluationMetrics train_metrics =
+                evaluate_network(&nn, train_dataset);
             printf(
-                "    Accuracy: %.2f%% (%d/%d)\n", metrics.accuracy * 100.0,
-                metrics.correct_predictions, dataset->num_samples
+                "  Train Accuracy: %.2f%% (%d/%d)\n",
+                train_metrics.accuracy * 100.0,
+                train_metrics.correct_predictions, train_dataset->num_samples
             );
 
+            // Evaluate on test set if available
+            if (use_test_split && test_dataset)
+            {
+                EvaluationMetrics test_metrics =
+                    evaluate_network(&nn, test_dataset);
+                printf(
+                    "  Test Accuracy: %.2f%% (%d/%d)\n",
+                    test_metrics.accuracy * 100.0,
+                    test_metrics.correct_predictions, test_dataset->num_samples
+                );
+                printf("  Test MSE: %.6f\n", test_metrics.mse);
+            }
+
+            // Save model
             char filepath[512];
             snprintf(
                 filepath, sizeof(filepath), "%s/custom-cnn-epoch-%zu.nn",
@@ -201,14 +297,21 @@ int main(int argc, char *argv[])
             ErrorCode save_err = save_nn(filepath, &nn);
             if (save_err == NN_ERR_OK)
             {
-                printf("    ✓ Model saved: %s\n", filepath);
+                printf("  ✓ Model saved: %s\n\n", filepath);
             }
             else
             {
                 fprintf(
-                    stderr, "    ✗ Error saving model: %s\n",
+                    stderr, "  ✗ Error saving model: %s\n\n",
                     nn_error_to_string(save_err)
                 );
+            }
+
+            // Stop if perfect accuracy on training set
+            if (!use_test_split && train_metrics.accuracy >= 1.0)
+            {
+                printf("🎉 Perfect accuracy achieved! Stopping training.\n");
+                break;
             }
         }
     }
@@ -227,13 +330,23 @@ int main(int argc, char *argv[])
 
     // Final evaluation
     printf("\nFinal Evaluation:\n");
-    EvaluationMetrics final_metrics = evaluate_network(&nn, dataset);
-    printf("  Accuracy: %.2f%%\n", final_metrics.accuracy * 100.0);
+    EvaluationMetrics final_train = evaluate_network(&nn, train_dataset);
+    printf("  Train Accuracy: %.2f%%\n", final_train.accuracy * 100.0);
     printf(
-        "  Correct: %d / %d\n", final_metrics.correct_predictions,
-        dataset->num_samples
+        "  Train Correct: %d / %d\n", final_train.correct_predictions,
+        train_dataset->num_samples
     );
-    printf("  MSE: %.6f\n", final_metrics.mse);
+
+    if (use_test_split && test_dataset)
+    {
+        EvaluationMetrics final_test = evaluate_network(&nn, test_dataset);
+        printf("  Test Accuracy: %.2f%%\n", final_test.accuracy * 100.0);
+        printf(
+            "  Test Correct: %d / %d\n", final_test.correct_predictions,
+            test_dataset->num_samples
+        );
+        printf("  Test MSE: %.6f\n", final_test.mse);
+    }
 
     // Save final model
     char final_path[512];
@@ -248,7 +361,9 @@ int main(int argc, char *argv[])
 
     // Cleanup
     free_nn(&nn);
-    free_dataset(dataset);
+    free_dataset(train_dataset);
+    if (test_dataset) free_dataset(test_dataset);
+    if (test_image_data) free(test_image_data);
     free_image_data(image_data);
 
     printf("\nDone!\n");
