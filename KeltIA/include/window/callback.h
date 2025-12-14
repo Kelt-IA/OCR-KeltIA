@@ -2,22 +2,16 @@
 #include "../../include/detect_zones/detect_char.h"
 #include "../../include/detect_zones/detect_zones.h"
 #include "../../include/image/removenoise.h"
+#include "../../include/image/show_result.h"
 #include "../../include/image/treatment.h"
 #include "../../include/nn/callback_for_ui.h"
+#include "../../include/nn/grid_builder.h"
 #include "../../include/nn/network.h"
 #include "../../include/nn/network_io.h"
 #include <err.h>
 #include <gtk/gtk.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "../../include/detect_zones/detect_char.h"
-#include "../../include/detect_zones/detect_zones.h"
-#include "../../include/image/removenoise.h"
-#include "../../include/image/treatment.h"
-#include "../../include/nn/callback_for_ui.h"
-#include "../../include/nn/network.h"
-#include "../../include/nn/network_io.h"
 
 void callback_init(GtkBuilder *b, GtkWidget *w);
 void on_autorotate_check(GtkToggleButton *toggle_button, gpointer user_data);

@@ -53,6 +53,10 @@ void callback_init(GtkBuilder *b, GtkWidget *w)
     if (!(window = GTK_WIDGET(gtk_builder_get_object(builder, "main_window"))))
         errx(EXIT_FAILURE, "Could not find the main window");
 
+    if (!(viewport =
+              GTK_WIDGET(gtk_builder_get_object(builder, "viewport_img"))))
+        errx(EXIT_FAILURE, "Could not find the viewport");
+
     if (!(rotation_box =
               GTK_WIDGET(gtk_builder_get_object(builder, "rotation_gbox"))))
         errx(EXIT_FAILURE, "Could not find rotation box");
@@ -279,9 +283,28 @@ void on_solve(GtkButton *btn, gpointer user_data)
         gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(rotation_spin))
     );
 
-    // printf("%s / %s\n", p->nn_image_path, p->ui_image_path);
+    CharBBox **grid = NULL;
+    char *char_grid = NULL;
+    int height = 0;
+    int width = 0;
+    char **words = NULL;
+    int num_words = 0;
 
-    MagickWand *wand = read_image(p->nn_image_path);
+    // Call function - it fills all the pointers
+    int error = extract_crossword_data(
+        p->nn_image_path,  // image path
+        nn_path,           // model path
+        &grid,             // pointer to receive grid
+        &char_grid,        // pointer to receive char array
+        &height,           // pointer to receive height
+        &width,            // pointer to receive width
+        &words,            // pointer to receive words array
+        &num_words         // pointer to receive word count
+    );
+
+    if (error) return;
+
+    MagickWand *wand = read_image(p->ui_image_path);
 
     if (!wand)
     {
@@ -290,55 +313,19 @@ void on_solve(GtkButton *btn, gpointer user_data)
         return;
     }
 
-    ExtractedZones ez = detect_zones(wand);
+    show_result(grid, char_grid, height, width, words, wand);
 
-    int grid_count = 0, word_count = 0;
-    CharBBox *grid_chars = detect_characters(
-        wand, ez.grid.x_min, ez.grid.y_min, ez.grid.x_max - ez.grid.x_min,
-        ez.grid.y_max - ez.grid.y_min, &grid_count
-    );
+    MagickBooleanType status;
 
-    CharBBox *word_chars = detect_characters(
-        wand, ez.words.x_min, ez.words.y_min, ez.words.x_max - ez.words.x_min,
-        ez.words.y_max - ez.words.y_min, &word_count
-    );
+    status = MagickWriteImage(wand, "/tmp/output.png");
 
-    NeuronalNetwork nn;
-    if (load_nn(nn_path, &nn) != NN_ERR_OK)
+    if (status == MagickFalse)
     {
-        fprintf(stderr, "Error loading model\n");
-        free(grid_chars);
-        free(word_chars);
-        DestroyMagickWand(wand);
-        MagickWandTerminus();
+        printf("Failed to save image result to tmp file\n");
         return;
     }
 
-    // Classify grid chars
-    // char *grid_preds = malloc(grid_count ? grid_count : 1);
-    for (int i = 0; i < grid_count; i++)
-    {
-        double *input = charbbox_to_cnn_input(wand, grid_chars[i]);
-        double output[26];
-        compute_nn(&nn, input, output);
-
-        // double conf;
-        // grid_preds[i] = get_predicted_letter(output, &conf);
-        free(input);
-    }
-
-    // Classify wordlist chars
-    // char *word_preds = malloc(word_count ? word_count : 1);
-    for (int i = 0; i < word_count; i++)
-    {
-        double *input = charbbox_to_cnn_input(wand, word_chars[i]);
-        double output[26];
-        compute_nn(&nn, input, output);
-
-        // double conf;
-        // word_preds[i] = get_predicted_letter(output, &conf);
-        free(input);
-    }
+    gtk_image_set_from_file(GTK_IMAGE(viewport), "/tmp/output.png");
 
     free(p);
 }
